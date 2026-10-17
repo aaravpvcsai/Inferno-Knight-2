@@ -1,0 +1,3498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Knight's Descent: Into the Inferno</title>
+    <script>
+        // The Tailwind Play CDN prints a "not for production" advisory. It is harmless here, so hide only that one
+        // message (all other warnings and errors still show).
+        (function () {
+            var warn = console.warn;
+            console.warn = function () {
+                if (arguments.length && String(arguments[0]).indexOf('cdn.tailwindcss.com should not be used in production') !== -1) return;
+                return warn.apply(console, arguments);
+            };
+        })();
+    </script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Press Start 2P', monospace;
+            background-color: #08050e;
+            color: #fff;
+            overflow: hidden;
+            touch-action: none;
+            user-select: none;
+        }
+        canvas {
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+        .crt::before {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+            z-index: 25;
+            background-size: 100% 4px, 6px 100%;
+            pointer-events: none;
+        }
+        .glow-orange { text-shadow: 0 0 10px #ff5500, 0 0 20px #ff2200; }
+        .glow-cyan { text-shadow: 0 0 10px #00ffff, 0 0 20px #0088ff; }
+        .glow-red { text-shadow: 0 0 10px #ff0000, 0 0 20px #aa0000; }
+        .glow-green { text-shadow: 0 0 10px #00ff66, 0 0 20px #00aa33; }
+        .retro-btn {
+            background: linear-gradient(180deg, #ff6600 0%, #990000 100%);
+            border: 4px solid #ffcc00;
+            box-shadow: 0 6px 0 #440000;
+        }
+        .retro-btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 #440000;
+        }
+        :root { --token-bg: #102b36; --token-ink: #d8f8ff; --token-edge: #76d5ed; --token-shade: #060a10; }
+        .token-counter { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; background: var(--token-bg); color: var(--token-ink); border: 2px solid var(--token-edge); padding: 6px; font-size: 8px; max-width: 150px; cursor: pointer; }
+        .token-counter.hidden { display: none; }
+        .token-modal { position: absolute; inset: 0; z-index: 60; background: var(--token-shade); color: var(--token-ink); display: flex; align-items: center; justify-content: center; padding: 20px; }
+        .token-modal.hidden { display: none; }
+        .token-panel { max-width: 560px; width: 100%; border: 3px solid var(--token-edge); background: var(--token-bg); padding: 24px; line-height: 1.9; font-size: 12px; }
+        .token-panel button { border: 2px solid var(--token-edge); padding: 10px 16px; margin-top: 18px; }
+        .token-panel h2 { margin-bottom: 18px; }
+        #tokenBreakdown p { display: flex; justify-content: space-between; gap: 12px; }
+        #dialogueText { overflow-wrap: anywhere; }
+        .pz-off { display: none !important; }
+        .pz-banner { position: absolute; top: 12%; left: 50%; transform: translateX(-50%); z-index: 35; pointer-events: none; background: rgba(8,6,16,.88); border: 3px solid #ffcc00; color: #ffe9a8; padding: 10px 18px; font-size: clamp(9px, 2vw, 16px); white-space: nowrap; animation: pzPulse 1s ease-in-out infinite; }
+        @keyframes pzPulse { 50% { transform: translateX(-50%) translateX(6px); } }
+        .pz-dialogue { position: absolute; left: 12%; right: 12%; top: 18%; z-index: 35; display: flex; gap: 3%; align-items: center; background: rgba(8,6,16,.9); border: 4px solid #ffcc00; box-shadow: 0 0 30px rgba(255,200,0,.35); padding: 3%; cursor: pointer; }
+        .pz-portrait { width: 26%; display: flex; flex-direction: column; align-items: center; gap: 6px; color: #67e8f9; font-size: clamp(8px, 1.8vw, 15px); }
+        .pz-portrait img { width: 100%; image-rendering: pixelated; object-fit: contain; }
+        .pz-textcol { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+        .pz-bubble { background: #fef3c7; color: #000; border: 4px solid #d97706; font-weight: bold; line-height: 1.7; padding: 4% 4%; min-height: 8em; display: flex; align-items: center; font-size: clamp(9px, 1.9vw, 16px); }
+        .pz-hint { color: #fcd34d; font-size: clamp(7px, 1.4vw, 12px); text-align: right; animation: frontBlink 1.1s steps(2, start) infinite; }
+        .pz-shop { position: absolute; left: 18%; right: 18%; top: 10%; z-index: 35; background: rgba(8,6,16,.94); border: 4px solid #ffcc00; box-shadow: 0 0 30px rgba(255,200,0,.35); padding: 2.5%; display: flex; flex-direction: column; gap: 8px; }
+        .pz-shop h2 { margin: 0; text-align: center; color: #facc15; font-size: clamp(14px, 3.2vw, 28px); text-shadow: 3px 3px 0 #7f1d1d; }
+        .pz-balance { color: #fdba74; text-align: center; font-size: clamp(8px, 1.6vw, 14px); }
+        .pz-item { display: flex; align-items: center; gap: 10px; border: 3px solid #585c61; background: #18181b; padding: 8px 10px; color: #e5e7eb; font-size: clamp(8px, 1.5vw, 13px); }
+        .pz-item-main { border-color: #facc15; background: #3a1608; }
+        .pz-item-locked { opacity: .5; }
+        .pz-item-icon { font-size: clamp(16px, 3vw, 26px); width: 2em; text-align: center; }
+        .pz-item-info { flex: 1; display: flex; flex-direction: column; gap: 5px; line-height: 1.5; }
+        .pz-item-info b { color: #fde68a; }
+        .pz-buy { background: #b91c1c; color: #fff3d0; border: 3px solid #facc15; padding: 6px 10px; font-family: inherit; font-size: clamp(8px, 1.4vw, 12px); line-height: 1.6; cursor: pointer; }
+        .pz-buy:hover { background: #dc2626; }
+        .pz-prompt { position: absolute; bottom: 9%; left: 50%; transform: translateX(-50%); z-index: 36; pointer-events: none; background: rgba(0,0,0,.88); border: 3px solid #4ade80; color: #bbf7d0; padding: 8px 16px; font-size: clamp(8px, 1.7vw, 14px); white-space: nowrap; animation: frontBlink 1.3s steps(2, start) infinite; }
+        .front-overlay { position: absolute; inset: 0; z-index: 45; background: radial-gradient(ellipse at 50% 80%, #4a0e00 0%, #14050a 55%, #05030a 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; text-align: center; overflow-y: auto; }
+        .front-overlay.hidden { display: none; }
+        .front-screen { display: none; flex-direction: column; align-items: center; justify-content: center; width: 100%; max-width: 640px; gap: 18px; }
+        .front-screen.active { display: flex; }
+        .front-title { font-size: clamp(20px, 6vw, 44px); line-height: 1.5; color: #ffb000; text-shadow: 0 0 10px #ff5500, 0 0 24px #ff2200, 4px 4px 0 #5a1000; }
+        .front-title span { color: #ff3b1f; }
+        .front-sub { font-size: clamp(8px, 2vw, 13px); color: #e2e8f0; animation: frontBlink 1.1s steps(2, start) infinite; }
+        @keyframes frontBlink { to { visibility: hidden; } }
+        .front-heading { font-size: clamp(9px, 2.4vw, 15px); line-height: 1.8; color: #fcd34d; }
+        .front-btn { min-width: 220px; padding: 14px 24px; font-size: clamp(10px, 2.4vw, 14px); color: #fff3d0; font-weight: bold; border-radius: 4px; cursor: pointer; transition: transform .1s; }
+        .front-btn:hover { transform: scale(1.05); }
+        .front-btn.hidden { display: none; }
+        .slot-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; width: 100%; }
+        @media (max-width: 560px) { .slot-grid { grid-template-columns: repeat(2, 1fr); } }
+        .slot-btn { background: #1a0d12; border: 3px solid #ffcc00; color: #ffe9a8; padding: 16px 6px; font-size: clamp(8px, 2vw, 12px); line-height: 1.6; cursor: pointer; border-radius: 4px; box-shadow: 0 4px 0 #440000; }
+        .slot-btn:hover { background: #4a1408; }
+        .slot-btn:disabled { opacity: .55; cursor: default; }
+        .slot-btn b { display: block; font-size: 1.5em; color: #ff8a1f; }
+        .front-msg { font-size: clamp(9px, 2.4vw, 15px); line-height: 1.8; color: #fff3d0; border: 3px solid #ffcc00; background: rgba(0,0,0,.6); padding: 16px 18px; border-radius: 4px; }
+        .front-msg.error { color: #ffb4a8; border-color: #ff3b1f; }
+        @media (max-width: 640px) { .token-panel { font-size: 10px; padding: 16px; } }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col items-center justify-center p-2 crt">
+
+    <!-- Game Container -->
+    <div class="relative w-full max-w-5xl h-full max-h-[820px] flex flex-col items-center justify-between border-4 border-amber-900/60 rounded-lg bg-black/90 shadow-[0_0_40px_rgba(255,80,0,0.2)] overflow-hidden p-2 sm:p-4">
+        
+        <!-- Top Pixel HUD Header -->
+        <div class="w-full flex flex-wrap justify-between items-center z-10 text-[9px] sm:text-xs px-2 sm:px-3 py-2 bg-slate-900/90 rounded border-2 border-amber-600/40 gap-1">
+            <div class="flex items-center space-x-2">
+                <button id="pauseBtn" class="bg-gray-800 border border-amber-500/50 px-1.5 py-1 text-[8px] sm:text-[10px] text-amber-300 hover:bg-gray-700 rounded">⏸️ PAUSE [P]</button>
+                    <div class="flex items-center space-x-1 sm:space-x-2" data-cs-hide>
+                    <span class="text-amber-400">HP:</span>
+                    <div id="heartsContainer" class="flex space-x-1 text-sm sm:text-base items-center">
+                        <!-- Dynamic Hearts via JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Shield Indicator HUD -->
+            <div class="flex items-center space-x-1 sm:space-x-2 bg-cyan-950/80 border border-cyan-500/60 px-2 py-1 rounded" data-cs-hide>
+                <span id="shieldHudText" class="text-cyan-300 font-bold glow-cyan">🛡️ SHIELD: READY [J]</span>
+                <div class="w-10 sm:w-16 bg-gray-900 h-2 sm:h-3 border border-cyan-600 relative overflow-hidden hidden" id="shieldCdContainer">
+                    <div id="shieldCdBar" class="bg-cyan-400 h-full w-0"></div>
+                </div>
+            </div>
+
+            <!-- Stage Label -->
+            <div class="hidden sm:flex items-center space-x-2" data-cs-hide>
+                <span id="stageLabel" class="text-cyan-400 glow-cyan">STAGE 1: CITADEL</span>
+            </div>
+
+            <!-- Score & Combo Counter HUD -->
+            <div class="flex items-center space-x-2" data-cs-hide>
+                <div class="hidden sm:flex items-center space-x-1 bg-slate-950/80 border border-amber-500/60 px-2 py-1 rounded">
+                    <span class="text-amber-400 font-bold">SCORE:</span>
+                    <span id="scoreText" class="text-amber-200 font-bold">0</span>
+                </div>
+                <div id="comboContainer" class="bg-amber-950/80 border border-amber-500/60 px-2 py-1 rounded text-center">
+                    <span id="comboText" class="text-amber-300 font-bold glow-orange">COMBO: 0</span>
+                    <span id="healReadyBadge" class="hidden text-[8px] text-green-400 font-bold animate-pulse block glow-green">[H] HEAL READY!</span>
+                </div>
+                <button id="muteBtn" class="bg-gray-800 border border-amber-500/50 px-1.5 py-1 text-[8px] text-amber-300 hover:bg-gray-700">🔊 MUSIC</button>
+            </div>
+            <button id="magmaCounter" type="button" aria-label="Token inventory" class="hidden token-counter">
+                <span id="tokenLabel">🔥 MAGMA TOKENS:</span>
+                <span id="magmaText">0</span>
+            </button>
+        </div>
+
+        <div id="tokenModal" class="hidden token-modal" role="dialog" aria-modal="true" aria-labelledby="tokenModalTitle">
+            <div class="token-panel">
+                <h2 id="tokenModalTitle">TOKENS</h2>
+                <p id="tokenTipText"></p>
+                <div id="tokenBreakdown" class="hidden"><p><span>🔥 Magma Tokens</span><span id="magmaInventory">0</span></p><p><span>❄ Frost Tokens</span><span id="frostInventory">0</span></p></div>
+                <button id="tokenModalNext" type="button">NEXT ▶</button>
+            </div>
+        </div>
+        <!-- Boss HP Bar (Visible on Stage 5) -->
+        <div id="bossBarContainer" class="hidden w-full bg-red-950/90 border-2 border-red-600 rounded p-1.5 z-10 my-1 text-center" data-cs-hide>
+            <div class="flex justify-between items-center text-[9px] sm:text-xs text-red-400 font-bold mb-1 px-1">
+                <span class="glow-red">👹 DEMON LORD KHAL'GORATH</span>
+                <span id="bossHpText" class="text-amber-300">300 / 300 HP</span>
+            </div>
+            <div class="w-full bg-black h-3 sm:h-4 border border-amber-500 relative overflow-hidden rounded">
+                <div id="bossHpBar" class="bg-gradient-to-r from-red-600 via-amber-500 to-yellow-400 h-full w-full transition-all duration-150"></div>
+            </div>
+        </div>
+
+        <!-- Controls HUD Bar -->
+        <div class="w-full bg-red-950/90 border-x-2 border-b-2 border-amber-500/80 text-[8px] sm:text-[10px] py-1.5 px-2.5 flex flex-wrap justify-between items-center text-amber-200 z-10 rounded-b shadow-md gap-y-1" data-cs-hide>
+            <div class="flex items-center space-x-1.5 font-bold flex-wrap gap-y-1">
+                <span class="bg-red-600 text-white px-1.5 py-0.5 rounded border border-yellow-300">⚔ ATK: Z/X/Click</span>
+                <span class="bg-cyan-600 text-white px-1.5 py-0.5 rounded border border-cyan-300">🛡️ SHIELD: J</span>
+                <span class="bg-emerald-600 text-white px-1.5 py-0.5 rounded border border-emerald-300 glow-green">💚 HEAL: H (5+ Combo)</span>
+                <span class="bg-slate-700 text-amber-300 px-1.5 py-0.5 rounded border border-amber-400">⏸ PAUSE: P / ESC</span>
+            </div>
+            <div class="hidden md:flex items-center space-x-3 text-slate-200">
+                <span><strong class="text-amber-400">JUMP / DBL JUMP:</strong> Space x2 / W</span>
+                <span><strong class="text-blue-400">DASH:</strong> Shift / L</span>
+                <span><strong class="text-amber-400">MOVE:</strong> A/D</span>
+            </div>
+        </div>
+
+        <!-- Canvas Container -->
+        <div class="relative w-full flex-1 my-1.5 flex items-center justify-center overflow-hidden border-2 border-amber-950 rounded bg-black">
+            <canvas id="gameCanvas" class="w-full h-full object-contain cursor-crosshair"></canvas>
+
+            <!-- Pause Overlay Menu -->
+            <div id="pauseOverlay" class="hidden absolute inset-0 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center z-50 p-6 text-center">
+                <h2 class="text-2xl sm:text-3xl text-amber-400 glow-orange mb-4">GAME PAUSED</h2>
+                <div class="flex flex-col gap-3 min-w-[200px]">
+                    <button id="resumeBtn" class="retro-btn px-6 py-2.5 text-amber-100 font-bold text-xs sm:text-sm rounded cursor-pointer transform hover:scale-105 transition-transform">
+                        RESUME [P / ESC]
+                    </button>
+                    <button id="restartBtn" class="bg-slate-800 border-2 border-red-500 hover:bg-red-900/60 px-6 py-2 text-red-300 font-bold text-xs rounded cursor-pointer transition-colors">
+                        RESTART STAGE
+                    </button>
+                </div>
+            </div>
+
+            <!-- Screen Overlay / Menus -->
+            <div id="menuOverlay" class="absolute inset-0 bg-black/85 backdrop-blur-sm flex flex-col items-center justify-center z-30 p-6 text-center">
+                <h1 id="menuTitle" class="text-xl sm:text-3xl text-amber-500 glow-orange mb-3 leading-snug">KNIGHT'S DESCENT<br><span class="text-red-600 text-sm sm:text-2xl">INTO THE INFERNO</span></h1>
+                <p id="menuSubtitle" class="text-slate-300 text-[10px] sm:text-xs mb-4 max-w-lg leading-relaxed">
+                    Battle through demons and conquer 3 unique infernal stages: Crumbling Platforms & Meteors, Moving Lifts & Lava Geysers, and Fire Barrier Sprints!
+                </p>
+
+                <div id="statsSummary" class="hidden mb-4 text-xs space-y-2 text-amber-300">
+                    <p>FINAL SCORE: <span id="finalScore" class="text-white">0</span></p>
+                    <p>TIME TAKEN: <span id="finalTime" class="text-white">0s</span></p>
+                </div>
+
+                <button id="startBtn" class="retro-btn px-6 py-3 text-amber-100 font-bold text-xs sm:text-sm rounded cursor-pointer transform hover:scale-105 transition-transform">
+                    START ADVENTURE
+                </button>
+
+                <!-- Key Controls Guide -->
+                <div class="mt-4 text-[9px] sm:text-[11px] text-slate-300 bg-black/80 border border-amber-500/50 p-3 rounded-lg space-y-1.5 max-w-md text-left">
+                    <p class="text-red-400 font-bold"><span id="atkDmgLabel" class="text-yellow-300">⚔️ ATTACK (20 DMG):</span> [Z], [X], or LEFT-CLICK (1 slash hit per swing! Slay basic demons in 3 slashes)</p>
+                    <p class="text-cyan-300 font-bold"><span class="text-cyan-400">🛡️ SHIELD:</span> [J] Blocks incoming hits & meteors! (7s cooldown)</p>
+                    <p class="text-emerald-400 font-bold"><span class="text-emerald-300">💚 COMBO HEAL:</span> Reach 5+ Combo & press [H] to heal +0.5 Heart!</p>
+                    <p><span class="text-amber-400">DOUBLE JUMP / DASH:</span> [SPACE] x2, [Shift] or [L] to leap across lava gaps!</p>
+                </div>
+            </div>
+
+
+            <!-- Area of Peace UI: Boofemo dialogue (middle of the screen only), banners and the shop tab -->
+            <div id="peaceBanner" class="pz-banner pz-off">Go to the shopkeeper -&gt;</div>
+            <div id="peaceDialogue" class="pz-dialogue pz-off">
+                <div class="pz-portrait">
+                    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAYAAABw4pVUAAAIW0lEQVR4AeycPY4cRRTHuwnIQPgKvsCSQEJKwEogZ2RO8R0gQARwB8cmIjMgmYCUAEi8F/AVjCAjGfrXO2/05k1VdX32lFGh/e+ret/1/l09u2uJt6bxX1cTGIR0Rcc0DUIGIZ1NoLN2xg0ZhHQ2gc7aGTdkENLZBDprZ9yQQUhnE+isnTY3pLNDvkntDEI6Y2sQMgjpbAKdtTNuyCCkswl01s64IYOQzibQWTvjhgxCOptAZ+28STeks9G1aWcQ0mau2VkHIdmjaxM4CGkz1+ysg5Ds0bUJHIS0mWt21kFI9ujaBA5C2sw1O+sgJHt0bQIHIW3mmp11EJI9ujaBg5A2c83OOgjJHl2bwEFIm7lmZx2EZI+uTeAgpM1cs7MOQrJH1yZwENJmrtlZuyfk5sOnh1xkT+WKgd0SIiSUzEZyaFmSb3rx+nCGomTu4CRC5GBnTdGkO3e2ljrZwRuBVXNzdsF53exdEiHZVVICOWCK/86+h48eTICyN1//MAHWtRBPyB6DOta4++bzCdQ65EWeY50LfQeKaELsk8BTAqqdwQzp8Ml708vfv5ju/nhyAfQCiNMQfUiSe33tpjS/9Ff1vJ7a0YR44uuol8O6Es3z7FJP8+zWi/M8z6vPPLul+KXIPcign2RCeBoJFNDo4e/pIPskCREgIuhwOExAXOd5lqVT4gucRlFG1k6+TZI/QyYTIjXm317LMk/GDiMx+zyHiUpM53QvPrsz670ymxDCsxvLIGOe5/U1RN0YzHOk/1Yvi523gNTMPrMk2JDJhNgP9438RebNV05RdhW8DF3tvMvWZFA4mhD72UFwFiIPn5W7dtAVeo0mpMpZKx7Qd3t8evrHBlhfgN4sLpzaK4KEJJWXw/iCsBsbrz8L47L+ZMUQLayf3ltf2WuflDWvKpASk+ubRQhD9BZk8MDrMAyhCSQRkvQ5AimA6iJZHyGkvvz1yQTIDY7maf7lryiIv8jcOIm/town5PbB7GqWqwxctlW3Qcbqc8VvPBj8WCtgf8V28v8nmLGN4yeHFcmNANc8uK/2tfuKvyG+E1TQB29YhfyhFLwmbX0enFBMS1syIRwgpSH8OXAIKfnOfG8fTFMKzoLPN/SnNdxsvd9rnUyIbmzXpl2D183ErHUOhz+kgPc/frpaOR9YNzt9SyPk9v6Dnade+mvS8K3jyZeCi5TfK07y2fPpAI5/EV717A2W0O6/0gjhOLf3pLAMgfewRsg3xrYO/DjgGP+gz4vwX6p54DRsLh5CYPU19umEUHUhJdQwLn7EW6JI+P7H+IQVPFsRIa3lEUL0QgrCB97FQOzcFlk3k5AjOBaZHz+aBKtq43asPhHfzh7IjVlEpDu55BNCChrZgCaFkCgchyaDRJ7FydCRZ4aNzTHvhlfQLESsTnL2dVPnWxkhMT3Q9NGv5JZACjimihJn/plkPPz3MT9az8uP15eI6iLNqT0hSz/zu9Ppzy7RpDBAsMTrL4YMtE6vsQlOekeeky2wWMkI2FuYdiGExvWrK5oUAhkmYK0gQ7dSudwvHbH3Bvd3SBDg8erRz6eHiX1rRBHy8PmnBw1pSuv0WuxnUr260CeRQgCDFbDfQsBXBu6SOu3eZFA7ihAcNWT4WqfXPjuvLntTkomhkAw7JPHLACQIMsKdITIPkU6nozKKEGkQeYw7CXQaJ8OyoIFFXHxpUi6MHgVPs8fUtdo1A3QC23wUITpID5+1trG2OgqjFzBYACkCsf2fJOcGciY7F9FbmUyITeDaUxyITTd20i0/TkKMQPQ++ertZxO+PnuKnlwp/qm+9rwyC5GhfE0IkYK6Aduk+IiMHTZ+QOJqy60+t+rpeM4PdAx7DW1j3ZQQCrjw3Qd3E3DZrqWjH1BS35KRk6s5ITwN0phuWHS5suUtye1J4vSZRRcrswhhsBpbxVIa5K+pYCsndkgRsE9B7c8R5pFS3+ebRYhNFtMMpAAdW/qK0LkgRu/3XOvz2zOm9lGFEIrSlIB9CF/+eRMyb9ogEmw6ZjpwjthQ7VtKBjWzCKGwBok0dJNaX7q2rxkXKfzmD2wtXoMCa8vd63Myj9w8Oi6LEJ2ANc0A1nug9IbV7rHm2asQIgfUjemnR+xI7cO+V9C/wNUjNpe+VFeVENtMq6ZtnXZ7d+aW56pOiL0BNG/xzrefuU+qtLzv1bZ4yT+9+pK4Pou0r+1f21hv2fGJRXVCKAwpgLUL/3z1k0t9dV3KZxPnA66mLUHsXX4uXRNCpBANW4jNJ0NPsi/Gpbc/aflunO922L7tXmpqvehKZFNCXI1xAK3XA9njlztNuK4tt4P+gO4xdk2chcTG3pLdCZEGZQCy15KhAa2LXfNvLNbXdTtc5DNMG1u61zljSLkKIbpJe2DXoKxP7t5HsjwcDCwFsX2EzmtzXIUQmqBJBgHYa/hI8eklVuzcEiB6l9SvK5c9Rgd5MX7aZyvmaoToJl1rhmvh8rODJcb6cTOA1bOXB4IHJAXEtkAzQngStlByIBkkOVykQEwIxAPiS8AZY+I12SH/JoTENqkbk4a1bq81tVNr5cRIjZCsTogmg6ZjEWrSZ9NPOLcE+Hxb6vWZS+tUJ0QagghZp0oG64PNpUnBpuPYh0CPIOQTspXE+vI2I8RXsIXekhJbo+aTXStXd4Tw1DFgCxkyN0DWWlp/9tqu19SQfekgdS7JWSKrElJ6uJKDpMbqQdI3SM1h/ckBrD5lX5UQKawPK7pSqZ94bolA53XptH1rzTDBlp+12/OSQ8P6h/ZNCAkVLLFpUiSPkIAUXaxkkMD65wyTPMDmSt1XJYSGQGoTKf6QInDFYXPpQzp6Flg/yLG60F7yaBnyt7b/AAAA///aG4+bAAAABklEQVQDAMU9PTZ+EN6+AAAAAElFTkSuQmCC" alt="Boofemo" />
+                    <span>BOOFEMO</span>
+                </div>
+                <div class="pz-textcol">
+                    <div class="pz-bubble"><span id="peaceDialogueText"></span></div>
+                    <div class="pz-hint">CLICK / [SPACE] &#9654; NEXT</div>
+                </div>
+            </div>
+            <div id="peaceShop" class="pz-shop pz-off">
+                <h2>SHOP</h2>
+                <div class="pz-balance">&#128293; MAGMA TOKENS: <span id="peaceShopBalance">0</span></div>
+                <div class="pz-item pz-item-main">
+                    <div class="pz-item-icon">&#9876;&#65039;</div>
+                    <div class="pz-item-info">
+                        <b>SWORD DAMAGE BOOST</b>
+                        <span id="peaceShopDesc">Damage 20 &rarr; 30</span>
+                    </div>
+                    <button id="peaceBuyBtn" type="button" class="pz-buy">&#128293; 10<br>BUY [X]</button>
+                </div>
+                <div class="pz-item pz-item-locked"><div class="pz-item-icon">?</div><div class="pz-item-info"><b>???</b><span>COMING SOON</span></div></div>
+                <div class="pz-item pz-item-locked"><div class="pz-item-icon">?</div><div class="pz-item-info"><b>???</b><span>COMING SOON</span></div></div>
+            </div>
+            <div id="peacePrompt" class="pz-prompt pz-off">Press X to purchase this upgrade</div>
+
+            <!-- Front screens: title -> New Game / Load Game -> slots -->
+            <div id="frontOverlay" class="front-overlay">
+                <div id="frontTitle" class="front-screen active">
+                    <h1 class="front-title">WELCOME TO<br><span>INFERNO NIGHT</span></h1>
+                    <p class="front-sub">Press any button to continue</p>
+                </div>
+                <div id="frontMenu" class="front-screen">
+                    <button id="newGameBtn" type="button" class="retro-btn front-btn">NEW GAME</button>
+                    <button id="loadGameBtn" type="button" class="retro-btn front-btn">LOAD GAME</button>
+                </div>
+                <div id="frontSlots" class="front-screen">
+                    <p class="front-heading">Choose Which Slot You Would Like to Start the Game In</p>
+                    <div id="slotGrid" class="slot-grid"></div>
+                </div>
+                <div id="frontMessage" class="front-screen">
+                    <p id="frontMessageText" class="front-msg"></p>
+                    <button id="frontBackBtn" type="button" class="retro-btn front-btn hidden">◀ GO BACK</button>
+                </div>
+            </div>
+
+            <!-- Stage Banner Notification Overlay -->
+            <div id="stageBanner" class="absolute inset-x-0 top-1/3 py-4 bg-red-950/90 border-y-4 border-amber-500 text-center z-20 transform translate-x-full transition-transform duration-500 pointer-events-none">
+                <h2 id="stageBannerText" class="text-lg sm:text-2xl text-amber-300 glow-orange">STAGE CLEARED!</h2>
+                <p id="stageBannerSub" class="text-[10px] text-red-300 mt-1">+1 HEART RESTORED!</p>
+            </div>
+
+            <!-- Full-screen Boofemo dialogue scene: everything else is wiped; only the Pause button stays above it. -->
+            <div id="cutsceneOverlay" class="hidden absolute inset-0 bg-black z-40 opacity-0 transition-opacity duration-1000">
+                <div class="relative flex h-full w-full items-center justify-center gap-4 sm:gap-10 px-3 sm:px-10">
+                    <div class="flex w-[36%] sm:w-[38%] h-full items-end justify-center pb-3 sm:pb-6">
+                        <div class="flex flex-col items-center gap-2 w-full h-full">
+                            <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAYAAABw4pVUAAAIW0lEQVR4AeycPY4cRRTHuwnIQPgKvsCSQEJKwEogZ2RO8R0gQARwB8cmIjMgmYCUAEi8F/AVjCAjGfrXO2/05k1VdX32lFGh/e+ret/1/l09u2uJt6bxX1cTGIR0Rcc0DUIGIZ1NoLN2xg0ZhHQ2gc7aGTdkENLZBDprZ9yQQUhnE+isnTY3pLNDvkntDEI6Y2sQMgjpbAKdtTNuyCCkswl01s64IYOQzibQWTvjhgxCOptAZ+28STeks9G1aWcQ0mau2VkHIdmjaxM4CGkz1+ysg5Ds0bUJHIS0mWt21kFI9ujaBA5C2sw1O+sgJHt0bQIHIW3mmp11EJI9ujaBg5A2c83OOgjJHl2bwEFIm7lmZx2EZI+uTeAgpM1cs7MOQrJH1yZwENJmrtlZuyfk5sOnh1xkT+WKgd0SIiSUzEZyaFmSb3rx+nCGomTu4CRC5GBnTdGkO3e2ljrZwRuBVXNzdsF53exdEiHZVVICOWCK/86+h48eTICyN1//MAHWtRBPyB6DOta4++bzCdQ65EWeY50LfQeKaELsk8BTAqqdwQzp8Ml708vfv5ju/nhyAfQCiNMQfUiSe33tpjS/9Ff1vJ7a0YR44uuol8O6Es3z7FJP8+zWi/M8z6vPPLul+KXIPcign2RCeBoJFNDo4e/pIPskCREgIuhwOExAXOd5lqVT4gucRlFG1k6+TZI/QyYTIjXm317LMk/GDiMx+zyHiUpM53QvPrsz670ymxDCsxvLIGOe5/U1RN0YzHOk/1Yvi523gNTMPrMk2JDJhNgP9438RebNV05RdhW8DF3tvMvWZFA4mhD72UFwFiIPn5W7dtAVeo0mpMpZKx7Qd3t8evrHBlhfgN4sLpzaK4KEJJWXw/iCsBsbrz8L47L+ZMUQLayf3ltf2WuflDWvKpASk+ubRQhD9BZk8MDrMAyhCSQRkvQ5AimA6iJZHyGkvvz1yQTIDY7maf7lryiIv8jcOIm/town5PbB7GqWqwxctlW3Qcbqc8VvPBj8WCtgf8V28v8nmLGN4yeHFcmNANc8uK/2tfuKvyG+E1TQB29YhfyhFLwmbX0enFBMS1syIRwgpSH8OXAIKfnOfG8fTFMKzoLPN/SnNdxsvd9rnUyIbmzXpl2D183ErHUOhz+kgPc/frpaOR9YNzt9SyPk9v6Dnade+mvS8K3jyZeCi5TfK07y2fPpAI5/EV717A2W0O6/0gjhOLf3pLAMgfewRsg3xrYO/DjgGP+gz4vwX6p54DRsLh5CYPU19umEUHUhJdQwLn7EW6JI+P7H+IQVPFsRIa3lEUL0QgrCB97FQOzcFlk3k5AjOBaZHz+aBKtq43asPhHfzh7IjVlEpDu55BNCChrZgCaFkCgchyaDRJ7FydCRZ4aNzTHvhlfQLESsTnL2dVPnWxkhMT3Q9NGv5JZACjimihJn/plkPPz3MT9az8uP15eI6iLNqT0hSz/zu9Ppzy7RpDBAsMTrL4YMtE6vsQlOekeeky2wWMkI2FuYdiGExvWrK5oUAhkmYK0gQ7dSudwvHbH3Bvd3SBDg8erRz6eHiX1rRBHy8PmnBw1pSuv0WuxnUr260CeRQgCDFbDfQsBXBu6SOu3eZFA7ihAcNWT4WqfXPjuvLntTkomhkAw7JPHLACQIMsKdITIPkU6nozKKEGkQeYw7CXQaJ8OyoIFFXHxpUi6MHgVPs8fUtdo1A3QC23wUITpID5+1trG2OgqjFzBYACkCsf2fJOcGciY7F9FbmUyITeDaUxyITTd20i0/TkKMQPQ++ertZxO+PnuKnlwp/qm+9rwyC5GhfE0IkYK6Aduk+IiMHTZ+QOJqy60+t+rpeM4PdAx7DW1j3ZQQCrjw3Qd3E3DZrqWjH1BS35KRk6s5ITwN0phuWHS5suUtye1J4vSZRRcrswhhsBpbxVIa5K+pYCsndkgRsE9B7c8R5pFS3+ebRYhNFtMMpAAdW/qK0LkgRu/3XOvz2zOm9lGFEIrSlIB9CF/+eRMyb9ogEmw6ZjpwjthQ7VtKBjWzCKGwBok0dJNaX7q2rxkXKfzmD2wtXoMCa8vd63Myj9w8Oi6LEJ2ANc0A1nug9IbV7rHm2asQIgfUjemnR+xI7cO+V9C/wNUjNpe+VFeVENtMq6ZtnXZ7d+aW56pOiL0BNG/xzrefuU+qtLzv1bZ4yT+9+pK4Pou0r+1f21hv2fGJRXVCKAwpgLUL/3z1k0t9dV3KZxPnA66mLUHsXX4uXRNCpBANW4jNJ0NPsi/Gpbc/aflunO922L7tXmpqvehKZFNCXI1xAK3XA9njlztNuK4tt4P+gO4xdk2chcTG3pLdCZEGZQCy15KhAa2LXfNvLNbXdTtc5DNMG1u61zljSLkKIbpJe2DXoKxP7t5HsjwcDCwFsX2EzmtzXIUQmqBJBgHYa/hI8eklVuzcEiB6l9SvK5c9Rgd5MX7aZyvmaoToJl1rhmvh8rODJcb6cTOA1bOXB4IHJAXEtkAzQngStlByIBkkOVykQEwIxAPiS8AZY+I12SH/JoTENqkbk4a1bq81tVNr5cRIjZCsTogmg6ZjEWrSZ9NPOLcE+Hxb6vWZS+tUJ0QagghZp0oG64PNpUnBpuPYh0CPIOQTspXE+vI2I8RXsIXekhJbo+aTXStXd4Tw1DFgCxkyN0DWWlp/9tqu19SQfekgdS7JWSKrElJ6uJKDpMbqQdI3SM1h/ckBrD5lX5UQKawPK7pSqZ94bolA53XptH1rzTDBlp+12/OSQ8P6h/ZNCAkVLLFpUiSPkIAUXaxkkMD65wyTPMDmSt1XJYSGQGoTKf6QInDFYXPpQzp6Flg/yLG60F7yaBnyt7b/AAAA///aG4+bAAAABklEQVQDAMU9PTZ+EN6+AAAAAElFTkSuQmCC" alt="Boofemo" class="flex-1 min-h-0 w-full object-contain [image-rendering:pixelated]" />
+                            <p class="text-cyan-300 text-xs sm:text-2xl glow-cyan font-bold">BOOFEMO</p>
+                        </div>
+                    </div>
+
+                    <div class="flex w-[60%] sm:w-[58%] h-full flex-col items-start justify-center gap-5 sm:gap-8">
+                        <div class="relative w-full bg-amber-100 text-black font-bold text-xs sm:text-lg leading-relaxed px-3 py-4 sm:px-6 sm:py-6 border-4 border-amber-600 shadow-[0_0_40px_rgba(255,200,0,0.5)] min-h-[24vh] max-h-[65vh] overflow-y-auto flex items-center">
+                            <span id="dialogueText">“Woah! You did it!”</span>
+                            <div class="absolute top-1/2 -left-4 -translate-y-1/2 w-0 h-0 border-y-[14px] sm:border-y-[20px] border-y-transparent border-r-[16px] sm:border-r-[22px] border-r-amber-100"></div>
+                        </div>
+                        <div id="dialogueNext" class="text-amber-300 text-[9px] sm:text-base font-bold animate-pulse">CLICK / [SPACE] ▶ NEXT</div>
+                        <div id="dialogueChoices" class="hidden flex flex-wrap gap-3 sm:gap-6">
+                            <button id="choiceReplayBtn" class="retro-btn px-5 py-3 text-amber-100 font-bold text-[9px] sm:text-sm rounded cursor-pointer transform hover:scale-105 transition-transform">↻ REPLAY LEVEL</button>
+                            <button id="choiceContinueBtn" class="retro-btn px-5 py-3 text-amber-100 font-bold text-[9px] sm:text-sm rounded cursor-pointer transform hover:scale-105 transition-transform">▶ NEXT STAGE</button>
+                        </div>
+                        <button id="cutsceneRestartBtn" class="hidden retro-btn px-6 py-3 text-amber-100 font-bold text-[9px] sm:text-sm rounded cursor-pointer transform hover:scale-105 transition-transform">
+                            PLAY AGAIN
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mobile Touch Controls -->
+        <div class="w-full flex justify-between items-center sm:hidden z-10 px-1 pt-1" data-cs-hide>
+            <div class="flex space-x-1">
+                <button id="tLeft" class="w-10 h-10 bg-gray-900 border-2 border-amber-600/60 rounded flex items-center justify-center text-amber-400 text-base active:bg-amber-700">◀</button>
+                <button id="tRight" class="w-10 h-10 bg-gray-900 border-2 border-amber-600/60 rounded flex items-center justify-center text-amber-400 text-base active:bg-amber-700">▶</button>
+            </div>
+            <div class="flex space-x-1">
+                <button id="tHeal" class="w-10 h-10 bg-emerald-900 border-2 border-emerald-400 rounded flex items-center justify-center text-emerald-300 text-[9px] font-bold active:bg-emerald-700">💚 H</button>
+                <button id="tShield" class="w-10 h-10 bg-cyan-900 border-2 border-cyan-400 rounded flex items-center justify-center text-cyan-200 text-[9px] font-bold active:bg-cyan-700">🛡️ J</button>
+                <button id="tDash" class="w-10 h-10 bg-blue-900 border-2 border-blue-500 rounded flex items-center justify-center text-blue-300 text-[9px] font-bold active:bg-blue-700">DASH</button>
+                <button id="tAtk" class="w-10 h-10 bg-red-600 border-2 border-yellow-300 rounded flex items-center justify-center text-white text-[10px] font-bold active:bg-red-800">⚔️ ATK</button>
+                <button id="tJump" class="w-10 h-10 bg-amber-800 border-2 border-amber-400 rounded flex items-center justify-center text-amber-100 text-[9px] font-bold active:bg-amber-600">JUMP</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class SoundEngine {
+            constructor() {
+                this.ctx = null;
+                this.muted = false;
+                this.musicInterval = null;
+                this.noteIdx = 0;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            }
+
+            playTone(freq, type, duration, vol = 0.1) {
+                if (this.muted || !this.ctx) return;
+                try {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = type;
+                    osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                    gain.gain.setValueAtTime(vol, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + duration);
+                } catch(e) {}
+            }
+
+            playJump() {
+                if (this.muted || !this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(150, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(420, this.ctx.currentTime + 0.12);
+                gain.gain.setValueAtTime(0.08, this.ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.12);
+                osc.connect(gain); gain.connect(this.ctx.destination);
+                osc.start(); osc.stop(this.ctx.currentTime + 0.12);
+            }
+
+            playAttack() {
+                if (this.muted || !this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(300, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(80, this.ctx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.12, this.ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.1);
+                osc.connect(gain); gain.connect(this.ctx.destination);
+                osc.start(); osc.stop(this.ctx.currentTime + 0.1);
+            }
+
+            playHit() { this.playTone(90, 'triangle', 0.15, 0.2); }
+
+            playHeal() {
+                if (this.muted || !this.ctx) return;
+                const notes = [300, 450, 600];
+                notes.forEach((freq, i) => {
+                    setTimeout(() => this.playTone(freq, 'sine', 0.15, 0.12), i * 70);
+                });
+            }
+
+            playShieldBlock() {
+                if (this.muted || !this.ctx) return;
+                const osc1 = this.ctx.createOscillator();
+                const osc2 = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc1.type = 'sine'; osc2.type = 'triangle';
+                osc1.frequency.setValueAtTime(800, this.ctx.currentTime);
+                osc2.frequency.setValueAtTime(1240, this.ctx.currentTime);
+                osc1.frequency.exponentialRampToValueAtTime(200, this.ctx.currentTime + 0.2);
+                osc2.frequency.exponentialRampToValueAtTime(300, this.ctx.currentTime + 0.2);
+                gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, this.ctx.currentTime + 0.2);
+                osc1.connect(gain); osc2.connect(gain); gain.connect(this.ctx.destination);
+                osc1.start(); osc2.start(); osc1.stop(this.ctx.currentTime + 0.2); osc2.stop(this.ctx.currentTime + 0.2);
+            }
+
+            playShieldActivate() { this.playTone(600, 'sine', 0.15, 0.1); }
+            playShieldBreak() { this.playTone(180, 'sawtooth', 0.25, 0.15); }
+
+            playFireball() {
+                if (this.muted || !this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(450, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(120, this.ctx.currentTime + 0.2);
+                gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.2);
+                osc.connect(gain); gain.connect(this.ctx.destination);
+                osc.start(); osc.stop(this.ctx.currentTime + 0.2);
+            }
+
+            playLava() { this.playTone(60, 'sawtooth', 0.3, 0.15); }
+            playCrumble() { this.playTone(110, 'sawtooth', 0.1, 0.1); }
+
+            playVictory() {
+                if (this.muted || !this.ctx) return;
+                const notes = [261, 329, 392, 523, 659, 783];
+                notes.forEach((freq, i) => {
+                    setTimeout(() => this.playTone(freq, 'square', 0.2, 0.1), i * 100);
+                });
+            }
+
+            startChiptune(stage = 1) {
+                this.stopChiptune();
+                if (!this.ctx) return;
+
+                const stage1Notes = [110, 130, 146, 130, 110, 98, 110, 146];
+                const stage2Notes = [146, 174, 196, 220, 196, 174, 146, 130];
+                const bossNotes = [82, 87, 82, 73, 82, 87, 98, 92];
+                const peaceNotes = [262, 330, 392, 330, 294, 349, 440, 349];
+                const notes = stage === 7 ? peaceNotes : (stage === 1 ? stage1Notes : (stage === 5 ? bossNotes : stage2Notes));
+
+                this.musicInterval = setInterval(() => {
+                    if (this.muted || !this.ctx) return;
+                    const freq = notes[this.noteIdx % notes.length];
+                    if (stage === 7) this.playTone(freq, 'sine', 0.45, 0.06);
+                    else this.playTone(freq, stage === 5 ? 'sawtooth' : 'square', 0.18, 0.05);
+                    this.noteIdx++;
+                }, stage === 7 ? 420 : (stage === 5 ? 160 : 220));
+            }
+
+            stopChiptune() {
+                if (this.musicInterval) {
+                    clearInterval(this.musicInterval);
+                    this.musicInterval = null;
+                }
+            }
+        }
+
+        const audio = new SoundEngine();
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingEnabled = false;
+
+        const heartsContainer = document.getElementById('heartsContainer');
+        const shieldHudText = document.getElementById('shieldHudText');
+        const shieldCdContainer = document.getElementById('shieldCdContainer');
+        const shieldCdBar = document.getElementById('shieldCdBar');
+        const scoreText = document.getElementById('scoreText');
+        const stageLabel = document.getElementById('stageLabel');
+        const bossBarContainer = document.getElementById('bossBarContainer');
+        const bossHpBar = document.getElementById('bossHpBar');
+        const bossHpText = document.getElementById('bossHpText');
+        const menuOverlay = document.getElementById('menuOverlay');
+        const menuTitle = document.getElementById('menuTitle');
+        const menuSubtitle = document.getElementById('menuSubtitle');
+        const startBtn = document.getElementById('startBtn');
+        const statsSummary = document.getElementById('statsSummary');
+        const finalScore = document.getElementById('finalScore');
+        const finalTime = document.getElementById('finalTime');
+        const stageBanner = document.getElementById('stageBanner');
+        const stageBannerText = document.getElementById('stageBannerText');
+        const stageBannerSub = document.getElementById('stageBannerSub');
+        const muteBtn = document.getElementById('muteBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const pauseOverlay = document.getElementById('pauseOverlay');
+        const resumeBtn = document.getElementById('resumeBtn');
+        const restartBtn = document.getElementById('restartBtn');
+
+        const cutsceneOverlay = document.getElementById('cutsceneOverlay');
+        const dialogueText = document.getElementById('dialogueText');
+        const dialogueNext = document.getElementById('dialogueNext');
+        const cutsceneRestartBtn = document.getElementById('cutsceneRestartBtn');
+        // Image loader for Boofemo character with automatic fallback
+        // Area of Peace: sunny rest area. Everything (shop, plants, clouds, hills, sun) is drawn in code in the
+        // game's own pixel style: dark outlines, steel/stone greys, gold trim, merchant reds.
+        const PEACE_GROUND_Y = 252;
+        const PEACE_PORTAL = { x: 440, y: 226 };
+        const PEACE_NPC = { x: 364 };
+        let peaceNearNpc = false;
+        let peaceNpcTimer = 0;
+        // Shopkeeper: a friendly human merchant (brown hair, maroon jacket with white suspenders, waving hand) drawn in the
+        // game's chunky pixel style with dark outlines. He bobs gently, waves, blinks, and his mouth moves while he talks.
+        function drawShopkeeper(ctx, t, talking) {
+            const frame = t * 10;
+            const bob = Math.round(Math.sin(frame * 0.13));
+            const lift = Math.round(Math.sin(frame * (talking ? 0.9 : 0.35)) * 2) + (talking ? 3 : 1);
+            const blink = Math.floor(frame) % 34 === 0;
+            const mouthOpen = talking ? Math.floor(frame * 1.5) % 2 === 0 : true;
+            const OUT = '#18181b', SKIN = '#e5aa7a', SKIN_D = '#c98a5c', HAIR = '#9c5a3c', HAIR_D = '#6b3a22';
+            const JK = '#990030', JK_D = '#6b0021', JK_L = '#c4143f';
+            ctx.save();
+            ctx.translate(PEACE_NPC.x, 221 + bob);
+
+            // Trousers (mostly hidden behind the counter)
+            drawPixelRect(ctx, OUT, -6, 9, 12, 6);
+            drawPixelRect(ctx, '#3b3b4a', -5, 9, 10, 6);
+            // Maroon jacket
+            drawPixelRect(ctx, OUT, -8, -3, 16, 14);
+            drawPixelRect(ctx, JK, -7, -2, 14, 12);
+            drawPixelRect(ctx, JK_L, -7, -2, 14, 1);
+            drawPixelRect(ctx, JK_D, -7, 7, 14, 3);
+            // White suspenders and grey buttons
+            drawPixelRect(ctx, '#ffffff', -4, -2, 2, 10);
+            drawPixelRect(ctx, '#ffffff', 2, -2, 2, 10);
+            drawPixelRect(ctx, '#b4b4b4', -4, 6, 2, 2);
+            drawPixelRect(ctx, '#b4b4b4', 2, 6, 2, 2);
+            drawPixelRect(ctx, '#464646', -1, 0, 2, 1);
+            drawPixelRect(ctx, '#464646', -1, 6, 2, 1);
+            // Bent right arm
+            drawPixelRect(ctx, OUT, 7, 0, 6, 10);
+            drawPixelRect(ctx, JK, 8, 1, 4, 8);
+            drawPixelRect(ctx, JK_D, 10, 1, 2, 8);
+            // Waving left arm with a bare hand
+            drawPixelRect(ctx, OUT, -13, -4 - lift, 7, 8 + lift);
+            drawPixelRect(ctx, JK, -12, -3 - lift, 5, 6 + lift);
+            drawPixelRect(ctx, JK_L, -12, -3 - lift, 5, 1);
+            drawPixelRect(ctx, OUT, -16, -8 - lift, 7, 6);
+            drawPixelRect(ctx, SKIN, -15, -7 - lift, 5, 4);
+            drawPixelRect(ctx, SKIN_D, -15, -4 - lift, 5, 1);
+            // Head with brown hair
+            drawPixelRect(ctx, OUT, -7, -16, 14, 15);
+            drawPixelRect(ctx, SKIN, -6, -11, 12, 9);
+            drawPixelRect(ctx, SKIN_D, 5, -11, 1, 9);
+            drawPixelRect(ctx, HAIR, -6, -15, 12, 4);
+            drawPixelRect(ctx, HAIR, -6, -11, 2, 2);
+            drawPixelRect(ctx, HAIR, 4, -11, 2, 2);
+            drawPixelRect(ctx, HAIR_D, -6, -12, 12, 1);
+            // Big eyes looking towards the player
+            if (blink) {
+                drawPixelRect(ctx, '#000000', -5, -8, 4, 1);
+                drawPixelRect(ctx, '#000000', 1, -8, 4, 1);
+            } else {
+                drawPixelRect(ctx, '#ffffff', -5, -9, 4, 3);
+                drawPixelRect(ctx, '#ffffff', 1, -9, 4, 3);
+                drawPixelRect(ctx, '#000000', -5, -9, 2, 3);
+                drawPixelRect(ctx, '#000000', 1, -9, 2, 3);
+            }
+            // Nose and smile
+            drawPixelRect(ctx, '#8a4b2a', 0, -6, 2, 2);
+            if (mouthOpen) {
+                drawPixelRect(ctx, '#000000', -2, -4, 5, 2);
+                drawPixelRect(ctx, '#f87171', -1, -3, 3, 1);
+            } else {
+                drawPixelRect(ctx, '#000000', -2, -3, 5, 1);
+            }
+            ctx.restore();
+        }
+
+        const PEACE_OUTLINE = '#18181b';
+
+        // Pixel clouds: rows of [row, startCell, cellCount], 4px cells, dark outline, soft shading.
+        const PEACE_CLOUD_SHAPES = [
+            [[0, 2, 2], [1, 1, 4], [2, 0, 7], [3, 1, 6]],
+            [[0, 3, 2], [1, 1, 6], [2, 0, 9], [3, 0, 9], [4, 2, 6]],
+            [[0, 1, 2], [1, 0, 4], [2, 1, 3]]
+        ];
+        const PEACE_CLOUDS = [
+            { shape: 0, y: 26, base: 40, speed: 6 },
+            { shape: 1, y: 54, base: 190, speed: 4 },
+            { shape: 2, y: 20, base: 330, speed: 8 },
+            { shape: 0, y: 78, base: 420, speed: 5 },
+            { shape: 2, y: 66, base: 110, speed: 7 },
+            { shape: 1, y: 100, base: 280, speed: 3 },
+            { shape: 2, y: 40, base: 240, speed: 9 }
+        ];
+        function drawPeaceCloud(ctx, x, y, rows) {
+            ctx.fillStyle = PEACE_OUTLINE;
+            rows.forEach(([r, c, n]) => ctx.fillRect(x + c * 4 - 2, y + r * 4 - 2, n * 4 + 4, 8));
+            rows.forEach(([r, c, n], i) => {
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(x + c * 4, y + r * 4, n * 4, 4);
+                if (i === rows.length - 1) { ctx.fillStyle = '#cfe8f7'; ctx.fillRect(x + c * 4, y + r * 4 + 2, n * 4, 2); }
+            });
+        }
+
+        function drawPeacePlant(ctx, x, y, kind, t) {
+            const sway = Math.sin(t * 1.3 + x * 0.17);
+            const leaf = (lx, ly, bright) => {
+                ctx.fillStyle = PEACE_OUTLINE; ctx.fillRect(lx - 1, ly - 1, 6, 5);
+                ctx.fillStyle = bright ? '#4ade80' : '#16a34a'; ctx.fillRect(lx, ly, 4, 3);
+                ctx.fillStyle = '#14532d'; ctx.fillRect(lx, ly + 2, 4, 1);
+            };
+            const pot = () => {
+                ctx.fillStyle = PEACE_OUTLINE; ctx.fillRect(x - 8, y - 11, 16, 11);
+                ctx.fillStyle = '#3a3d40'; ctx.fillRect(x - 6, y - 7, 12, 7);
+                ctx.fillStyle = '#585c61'; ctx.fillRect(x - 7, y - 10, 14, 3);
+                ctx.fillStyle = '#facc15'; ctx.fillRect(x - 7, y - 10, 14, 1);
+                ctx.fillStyle = '#3b2a1a'; ctx.fillRect(x - 5, y - 8, 10, 1);
+            };
+            if (kind === 'vine') {
+                pot();
+                const h = 46;
+                for (let i = 0; i < h; i += 2) {
+                    const off = Math.round(sway * (i / h) * 4);
+                    ctx.fillStyle = PEACE_OUTLINE; ctx.fillRect(x - 2 + off, y - 12 - i, 4, 3);
+                    ctx.fillStyle = '#16a34a'; ctx.fillRect(x - 1 + off, y - 12 - i, 2, 3);
+                }
+                for (let i = 1; i <= 5; i++) {
+                    const off = Math.round(sway * (i * 8 / h) * 4);
+                    const side = i % 2 ? -1 : 1;
+                    leaf(x + off + (side < 0 ? -7 : 2), y - 14 - i * 8, i % 2 === 0);
+                    leaf(x + off + (side < 0 ? -11 : 6), y - 17 - i * 8, i % 2 === 1);
+                }
+            } else if (kind === 'fern') {
+                pot();
+                for (let k = 0; k < 4; k++) {
+                    const off = Math.round(sway * (k + 1) * 0.5);
+                    leaf(x - 4 - k * 3 + off, y - 14 - k * 4, k % 2 === 0);
+                    leaf(x + 1 + k * 3 + off, y - 14 - k * 4, k % 2 === 1);
+                }
+                ctx.fillStyle = '#16a34a'; ctx.fillRect(x - 1, y - 24, 2, 14);
+            } else if (kind === 'bush' || kind === 'flowers') {
+                const rows = [[24, 0], [22, 2], [18, 3], [12, 4]];
+                rows.forEach(([w, up], i) => {
+                    ctx.fillStyle = PEACE_OUTLINE; ctx.fillRect(x - w / 2 - 1, y - 4 - i * 4 - 1, w + 2, 6);
+                });
+                rows.forEach(([w, up], i) => {
+                    ctx.fillStyle = i % 2 ? '#22c55e' : '#16a34a';
+                    ctx.fillRect(x - w / 2, y - 4 - i * 4, w, 4);
+                    ctx.fillStyle = '#14532d'; ctx.fillRect(x - w / 2, y - 1 - i * 4, w, 1);
+                });
+                if (kind === 'flowers') {
+                    [[-6, 14, '#dc2626'], [2, 18, '#facc15'], [6, 10, '#dc2626'], [-2, 8, '#fef08a']].forEach(([fx, fy, c]) => {
+                        ctx.fillStyle = c; ctx.fillRect(x + fx, y - fy + Math.round(sway), 3, 3);
+                    });
+                }
+            }
+        }
+
+        function drawPeaceGlyphs(ctx, text, x, y, px, color) {
+            const G = {
+                S: ['.####', '#....', '#....', '.###.', '....#', '....#', '####.'],
+                H: ['#...#', '#...#', '#...#', '#####', '#...#', '#...#', '#...#'],
+                O: ['.###.', '#...#', '#...#', '#...#', '#...#', '#...#', '.###.'],
+                P: ['####.', '#...#', '#...#', '####.', '#....', '#....', '#....']
+            };
+            ctx.fillStyle = color;
+            [...text].forEach((ch, i) => {
+                G[ch].forEach((row, ry) => [...row].forEach((c, rx) => {
+                    if (c === '#') ctx.fillRect(x + i * 6 * px + rx * px, y + ry * px, px, px);
+                }));
+            });
+        }
+
+        function drawPeaceShop(ctx, t) {
+            const L = 330, R = 398;
+            // Steel posts
+            [L + 1, R - 4].forEach(px => {
+                ctx.fillStyle = PEACE_OUTLINE; ctx.fillRect(px - 1, 194, 6, 42);
+                ctx.fillStyle = '#27272a'; ctx.fillRect(px, 194, 4, 42);
+                ctx.fillStyle = '#facc15'; ctx.fillRect(px, 194, 1, 42);
+            });
+            // Striped awning (red + cream) with gold trim
+            ctx.fillStyle = PEACE_OUTLINE; ctx.fillRect(L - 4, 190, R - L + 8, 12);
+            for (let x = L - 3, i = 0; x < R + 3; x += 8, i++) {
+                ctx.fillStyle = i % 2 ? '#fef3c7' : '#dc2626';
+                ctx.fillRect(x, 191, 8, 8);
+                ctx.fillStyle = i % 2 ? '#fcd34d' : '#991b1b';
+                ctx.fillRect(x, 197, 8, 2);
+            }
+            ctx.fillStyle = '#facc15'; ctx.fillRect(L - 3, 190, R - L + 6, 1);
+            // Hanging sign: dark plaque with gold border and pixel letters
+            ctx.fillStyle = PEACE_OUTLINE;
+            ctx.fillRect(L + 12, 178, 2, 12); ctx.fillRect(R - 14, 178, 2, 12);
+            ctx.fillRect(L + 6, 164, R - L - 12, 22);
+            ctx.fillStyle = '#facc15'; ctx.fillRect(L + 7, 165, R - L - 14, 20);
+            ctx.fillStyle = '#18181b'; ctx.fillRect(L + 9, 167, R - L - 18, 16);
+            drawPeaceGlyphs(ctx, 'SHOP', L + 9 + Math.round(((R - L - 18) - 46) / 2) + 1, 169, 2, '#7f1d1d');
+            drawPeaceGlyphs(ctx, 'SHOP', L + 9 + Math.round(((R - L - 18) - 46) / 2), 168, 2, '#facc15');
+            // Hanging lanterns that flicker
+            [L - 1, R - 3].forEach((lx, i) => {
+                const f = Math.sin(t * 7 + i * 2) > 0 ? '#fde047' : '#fbbf24';
+                ctx.fillStyle = PEACE_OUTLINE; ctx.fillRect(lx, 202, 4, 8);
+                ctx.fillStyle = f; ctx.fillRect(lx + 1, 203, 2, 6);
+            });
+        }
+
+        function drawPeaceCounter(ctx) {
+            const L = 330, R = 398;
+            ctx.fillStyle = PEACE_OUTLINE; ctx.fillRect(L - 1, 232, R - L + 2, 21);
+            ctx.fillStyle = '#3a3d40'; ctx.fillRect(L, 234, R - L, 18);
+            ctx.fillStyle = '#585c61'; ctx.fillRect(L, 234, R - L, 3);
+            ctx.fillStyle = '#facc15'; ctx.fillRect(L, 234, R - L, 1);
+            // Red cloth front panel
+            ctx.fillStyle = '#7f1d1d'; ctx.fillRect(L + 4, 239, R - L - 8, 11);
+            ctx.fillStyle = '#b91c1c'; ctx.fillRect(L + 4, 239, R - L - 8, 2);
+            ctx.fillStyle = '#facc15'; ctx.fillRect(L + 4, 248, R - L - 8, 1);
+            // Goods on the counter: potions and a coin stack
+            ctx.fillStyle = PEACE_OUTLINE; ctx.fillRect(L + 36, 224, 6, 11); ctx.fillRect(L + 45, 226, 6, 9);
+            ctx.fillStyle = '#ef4444'; ctx.fillRect(L + 37, 227, 4, 7);
+            ctx.fillStyle = '#38bdf8'; ctx.fillRect(L + 46, 229, 4, 5);
+            ctx.fillStyle = '#e5e7eb'; ctx.fillRect(L + 38, 225, 2, 2); ctx.fillRect(L + 47, 227, 2, 2);
+            ctx.fillStyle = PEACE_OUTLINE; ctx.fillRect(L + 56, 228, 8, 7);
+            ctx.fillStyle = '#facc15'; ctx.fillRect(L + 57, 229, 6, 2); ctx.fillRect(L + 57, 232, 6, 2);
+            ctx.fillStyle = '#fef08a'; ctx.fillRect(L + 58, 229, 2, 1); ctx.fillRect(L + 58, 232, 2, 1);
+        }
+
+        function drawPeaceScene(ctx, t) {
+            // Daytime sky in stepped pixel bands
+            const bands = ['#0a9fe0', '#00acea', '#00b7ef', '#2ec3f2', '#5fd0f5', '#8adcf7', '#b3e7fa'];
+            const bh = Math.ceil(PEACE_GROUND_Y / bands.length);
+            bands.forEach((c, i) => { ctx.fillStyle = c; ctx.fillRect(0, i * bh, 480, bh + 1); });
+
+            // Sun with pulsing rays
+            const sx = 424, sy = 44;
+            const pulse = Math.floor((Math.sin(t * 3) + 1) * 1.5);
+            ctx.fillStyle = '#ff9a00';
+            [[0, -26], [0, 26], [-26, 0], [26, 0], [-19, -19], [19, -19], [-19, 19], [19, 19]].forEach(([dx, dy]) => {
+                ctx.fillRect(sx + dx * (1 + pulse * 0.04) - 2, sy + dy * (1 + pulse * 0.04) - 2, 4, 4);
+            });
+            ctx.fillStyle = PEACE_OUTLINE;
+            for (let dy = -18; dy < 18; dy += 2) { const w = Math.round(Math.sqrt(324 - dy * dy)); ctx.fillRect(sx - w, sy + dy, w * 2, 2); }
+            ctx.fillStyle = '#ff7e00';
+            for (let dy = -16; dy < 16; dy += 2) { const w = Math.round(Math.sqrt(256 - dy * dy)); ctx.fillRect(sx - w, sy + dy, w * 2, 2); }
+            ctx.fillStyle = '#fff200';
+            for (let dy = -13; dy < 13; dy += 2) { const w = Math.round(Math.sqrt(169 - dy * dy)); ctx.fillRect(sx - w, sy + dy, w * 2, 2); }
+
+            // Drifting clouds
+            PEACE_CLOUDS.forEach(c => {
+                const x = ((c.base + t * c.speed) % 560) - 70;
+                drawPeaceCloud(ctx, Math.round(x), c.y, PEACE_CLOUD_SHAPES[c.shape]);
+            });
+
+            // Distant citadel silhouette (the game's setting), hazy blue
+            ctx.fillStyle = '#6fa8c7';
+            ctx.fillRect(96, 196, 60, 40);
+            [[92, 176, 16, 60], [144, 184, 16, 52], [118, 168, 14, 68]].forEach(([x, y, w, h]) => {
+                ctx.fillStyle = '#6fa8c7'; ctx.fillRect(x, y, w, h);
+                ctx.fillStyle = '#5a93b3';
+                for (let cx = x; cx < x + w; cx += 6) ctx.fillRect(cx, y - 4, 3, 4);
+                ctx.fillRect(x + Math.floor(w / 2) - 1, y + 10, 3, 6);
+            });
+            ctx.fillStyle = '#5a93b3';
+            for (let cx = 96; cx < 156; cx += 8) ctx.fillRect(cx, 192, 4, 4);
+
+            // Rolling hills, stepped, with a darker grassy rim
+            [[60, 130, 46, '#58cfa6', '#3fb88b'], [300, 170, 38, '#58cfa6', '#3fb88b'], [190, 110, 28, '#3fb88b', '#2e9a73'], [420, 90, 34, '#3fb88b', '#2e9a73']].forEach(([cx, hw, hh, col, rim]) => {
+                for (let x = cx - hw; x < cx + hw; x += 4) {
+                    const d = (x - cx) / hw;
+                    const h = Math.round(hh * Math.sqrt(Math.max(0, 1 - d * d)) / 4) * 4;
+                    if (h <= 0) continue;
+                    ctx.fillStyle = col; ctx.fillRect(x, PEACE_GROUND_Y - h, 4, h);
+                    ctx.fillStyle = rim; ctx.fillRect(x, PEACE_GROUND_Y - h, 4, 2);
+                }
+            });
+
+            // Plants along the path
+            [[48, 'vine'], [88, 'bush'], [128, 'flowers'], [172, 'fern'], [214, 'bush'], [252, 'vine'], [288, 'flowers'], [314, 'fern'], [416, 'fern']].forEach(([x, kind]) => drawPeacePlant(ctx, x, PEACE_GROUND_Y, kind, t));
+
+            // Shop booth, shopkeeper behind the counter
+            drawPeaceShop(ctx, t);
+            drawShopkeeper(ctx, t, peaceNpcTimer > 0);
+            drawPeaceCounter(ctx);
+
+            // Stone ground, same look as the stage 1 platforms, with grass tufts
+            ctx.fillStyle = '#3a3d40';
+            ctx.fillRect(0, PEACE_GROUND_Y, 480, 270 - PEACE_GROUND_Y);
+            ctx.fillStyle = '#585c61';
+            ctx.fillRect(0, PEACE_GROUND_Y, 480, 3);
+            ctx.fillStyle = '#2a2c2f';
+            ctx.fillRect(0, PEACE_GROUND_Y + 10, 480, 1);
+            for (let x = 0; x < 480; x += 32) {
+                ctx.fillRect(x, PEACE_GROUND_Y + 3, 1, 7);
+                ctx.fillRect(x + 16, PEACE_GROUND_Y + 11, 1, 7);
+            }
+            for (let x = 14; x < 480; x += 37) {
+                ctx.fillStyle = '#16a34a'; ctx.fillRect(x, PEACE_GROUND_Y - 3, 1, 3); ctx.fillRect(x + 2, PEACE_GROUND_Y - 4, 1, 4); ctx.fillRect(x + 4, PEACE_GROUND_Y - 2, 1, 2);
+            }
+        }
+
+        function drawPeaceLabel(ctx, text, cx, y, border) {
+            ctx.font = '8px "Press Start 2P", monospace';
+            const w = Math.ceil(ctx.measureText(text).width) + 10;
+            const x = Math.max(3, Math.min(480 - w - 3, Math.round(cx - w / 2)));
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.78)';
+            ctx.fillRect(x, y, w, 16);
+            ctx.fillStyle = border;
+            ctx.fillRect(x, y, w, 1); ctx.fillRect(x, y + 15, w, 1); ctx.fillRect(x, y, 1, 16); ctx.fillRect(x + w - 1, y, 1, 16);
+            ctx.fillStyle = '#ffffff';
+            ctx.textBaseline = 'top';
+            ctx.fillText(text, x + 5, y + 4);
+        }
+
+        // ---------------- Area of Peace story: Boofemo intro -> shopkeeper -> shop -> Boofemo outro -> portal ----------------
+        let swordHidden = false;                     // the knight has no sword in the area of peace
+        let swordDamage = 20;                        // damage per sword hit
+        const SWORD_UPGRADE = { damage: 30, cost: 10 };
+        const PEACE_TOKEN_GIFT = 10;
+        let peaceStep = 'NONE';                      // INTRO, GO_SHOP, SHOP_TALK, SHOP_MENU, SHOP_THANKS, OUTRO, FREE
+        let peaceFrozen = false;
+        let peaceGiftGiven = false;
+        let peaceUpgraded = false;
+        let peaceBubbleLines = null, peaceBubbleIdx = 0, peaceBubbleDone = null;
+        let peacePanelLines = null, peacePanelIdx = 0, peacePanelDone = null;
+        let peaceIntroTimeout = null;
+
+        const PEACE_INTRO_LINES = [
+            'Oh! Before we go to the next stage, I wanted to show you this.',
+            'This is a peaceful area and you will encounter many more on your journey.',
+            'The purpose of these peaceful areas are to give you breaks between your battles.',
+            'They let you upgrade gear and chill.',
+            'Because of how brave you were, here are ' + PEACE_TOKEN_GIFT + ' free Magma Tokens!',
+            'You can talk with the shopkeeper over there and use them!'
+        ];
+        const PEACE_GIFT_LINE = 4;
+        const PEACE_SHOP_LINES = [
+            'Hello! Welcome to my store!',
+            "Here, you can upgrade your gear or buy 'special' resources.",
+            'I see that you have enough magma tokens to upgrade your sword.',
+            "I'd recommend you do that."
+        ];
+        const PEACE_THANKS_LINES = [
+            'Oh yes!',
+            'Now your sword does ' + SWORD_UPGRADE.damage + ' damage!',
+            'I told you it was worth it!'
+        ];
+        const PEACE_OUTRO_LINES = [
+            "Great! Now you're even more powerful!",
+            'With that being done, head through the portal to the right to move onto the next stage.',
+            "Don't worry! You can always come back here for more purchases and upgrades."
+        ];
+
+        function peaceEl(id) { return document.getElementById(id); }
+        function peaceShow(id, on) { peaceEl(id).classList.toggle('pz-off', !on); }
+        function peaceBlip(freq) { try { audio.playTone(freq || 660, 'square', 0.08, 0.06); } catch (err) { /* sound is optional */ } }
+
+        function setPeaceStep(step) {
+            peaceStep = step;
+            peaceFrozen = ['INTRO', 'SHOP_TALK', 'SHOP_MENU', 'SHOP_THANKS', 'OUTRO'].includes(step);
+            peaceShow('peaceBanner', step === 'GO_SHOP');
+            peaceShow('peaceShop', step === 'SHOP_MENU');
+            peaceShow('peacePrompt', step === 'SHOP_MENU');
+            if (step === 'SHOP_MENU') {
+                peaceEl('peaceShopBalance').textContent = magmaTokens;
+                peaceEl('peaceShopDesc').textContent = 'Damage ' + swordDamage + ' \u2192 ' + SWORD_UPGRADE.damage;
+            }
+        }
+
+        function hidePeaceUI() {
+            ['peaceBanner', 'peaceDialogue', 'peaceShop', 'peacePrompt'].forEach(id => peaceShow(id, false));
+            peaceBubbleLines = null; peacePanelLines = null;
+            if (peaceIntroTimeout) { clearTimeout(peaceIntroTimeout); peaceIntroTimeout = null; }
+        }
+
+        // Boofemo's dialogue panel (covers only the middle of the screen)
+        function showPeacePanel(lines, step, done) {
+            peacePanelLines = lines; peacePanelIdx = 0; peacePanelDone = done;
+            setPeaceStep(step);
+            showPeaceLine();
+            peaceShow('peaceDialogue', true);
+        }
+        function showPeaceLine() {
+            peaceEl('peaceDialogueText').textContent = '\u201C' + peacePanelLines[peacePanelIdx] + '\u201D';
+            if (peaceStep === 'INTRO' && peacePanelIdx === PEACE_GIFT_LINE && !peaceGiftGiven) {
+                peaceGiftGiven = true;
+                magmaTokens += PEACE_TOKEN_GIFT;
+                updateMagmaHUD();
+                try { audio.playVictory(); } catch (err) { /* sound is optional */ }
+            }
+        }
+        function advancePeacePanel() {
+            if (!peacePanelLines) return;
+            peaceBlip(660);
+            if (++peacePanelIdx >= peacePanelLines.length) {
+                peacePanelLines = null;
+                peaceShow('peaceDialogue', false);
+                const done = peacePanelDone; peacePanelDone = null;
+                if (done) done();
+            } else {
+                showPeaceLine();
+            }
+        }
+
+        // Shopkeeper speech bubbles (drawn on the canvas, advanced with SPACE)
+        function startShopBubbles(lines, step, done) {
+            peaceBubbleLines = lines; peaceBubbleIdx = 0; peaceBubbleDone = done;
+            setPeaceStep(step);
+            peaceBlip(520);
+        }
+        function advanceShopBubble() {
+            if (!peaceBubbleLines) return;
+            peaceBlip(520);
+            if (++peaceBubbleIdx >= peaceBubbleLines.length) {
+                peaceBubbleLines = null;
+                const done = peaceBubbleDone; peaceBubbleDone = null;
+                if (done) done();
+            }
+        }
+
+        function startPeaceIntro() {
+            hidePeaceUI();
+            swordHidden = true;
+            setPeaceStep('INTRO');   // player is frozen from the moment they arrive
+            // Wait for the black Boofemo scene to fade out before the dialogue appears.
+            peaceIntroTimeout = setTimeout(() => {
+                peaceIntroTimeout = null;
+                if (currentStage !== 7 || peaceStep !== 'INTRO') return;
+                showPeacePanel(PEACE_INTRO_LINES, 'INTRO', () => setPeaceStep('GO_SHOP'));
+            }, 900);
+        }
+
+        function openPeaceShop() {
+            setPeaceStep('SHOP_MENU');
+            peaceBlip(740);
+        }
+        function buyPeaceUpgrade() {
+            if (peaceStep !== 'SHOP_MENU' || peaceUpgraded) return;
+            if (magmaTokens < SWORD_UPGRADE.cost) {
+                peaceEl('peacePrompt').textContent = 'Not enough Magma Tokens!';
+                return;
+            }
+            magmaTokens -= SWORD_UPGRADE.cost;
+            swordDamage = SWORD_UPGRADE.damage;
+            peaceUpgraded = true;
+            updateMagmaHUD();
+            const lbl = document.getElementById('atkDmgLabel');
+            if (lbl) lbl.textContent = '\u2694\uFE0F ATTACK (' + swordDamage + ' DMG):';
+            try { audio.playVictory(); } catch (err) { /* sound is optional */ }
+            peaceEl('peacePrompt').textContent = 'Press X to purchase this upgrade';
+            startShopBubbles(PEACE_THANKS_LINES, 'SHOP_THANKS', () => {
+                showPeacePanel(PEACE_OUTRO_LINES, 'OUTRO', () => setPeaceStep('FREE'));
+            });
+        }
+
+        // SPACE / ENTER: advances dialogue, or talks to the shopkeeper when standing next to him.
+        function peaceInteract() {
+            if (currentStage !== 7 || gameState !== 'PLAYING') return false;
+            if (peacePanelLines) { advancePeacePanel(); return true; }
+            if (peaceBubbleLines) { advanceShopBubble(); return true; }
+            if (peaceStep === 'SHOP_MENU') return true;
+            if (peaceNearNpc) {
+                if (peaceStep === 'GO_SHOP' && !peaceUpgraded) {
+                    startShopBubbles(PEACE_SHOP_LINES, 'SHOP_TALK', openPeaceShop);
+                } else if (peaceStep === 'FREE') {
+                    peaceNpcTimer = 2.5;
+                    peaceBlip(660);
+                }
+                return true;
+            }
+            return false;
+        }
+
+        function peaceWrap(ctx, text, maxW) {
+            const words = text.split(' ');
+            const lines = []; let cur = '';
+            words.forEach(w => {
+                const t = cur ? cur + ' ' + w : w;
+                if (cur && ctx.measureText(t).width > maxW) { lines.push(cur); cur = w; } else cur = t;
+            });
+            if (cur) lines.push(cur);
+            return lines;
+        }
+
+        function drawPeaceUI(ctx) {
+            let text = null, hint = false;
+            if (peaceBubbleLines) { text = peaceBubbleLines[peaceBubbleIdx]; hint = true; }
+            else if (peaceNpcTimer > 0) text = 'Hello!';
+
+            if (text) {
+                // Speech bubble to the left of the shopkeeper (wraps long lines)
+                ctx.font = '8px "Press Start 2P", monospace';
+                const lines = peaceWrap(ctx, text, 168);
+                let w = 0; lines.forEach(l => { w = Math.max(w, Math.ceil(ctx.measureText(l).width)); });
+                if (hint) w = Math.max(w, Math.ceil(ctx.measureText('SPACE >').width));
+                w += 12;
+                const lh = 11;
+                const h = lines.length * lh + 8 + (hint ? 10 : 0);
+                const right = PEACE_NPC.x - 16;
+                const bx = Math.max(4, right - w), bottom = 214, by = bottom - h;
+                ctx.fillStyle = '#000000';
+                ctx.fillRect(bx - 1, by - 1, w + 2, h + 2);
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(bx, by, w, h);
+                // tail pointing at the shopkeeper
+                const tx = bx + w;
+                ctx.fillStyle = '#000000';
+                ctx.fillRect(tx - 1, bottom - 12, 8, 6); ctx.fillRect(tx + 6, bottom - 8, 5, 4);
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(tx, bottom - 14, 8, 6); ctx.fillRect(tx + 6, bottom - 10, 4, 4);
+                ctx.fillStyle = '#000000';
+                ctx.textBaseline = 'top';
+                lines.forEach((l, i) => ctx.fillText(l, bx + 6, by + 5 + i * lh));
+                if (hint) {
+                    ctx.fillStyle = Math.floor(gameTime * 2.5) % 2 ? '#b45309' : '#78350f';
+                    ctx.fillText('SPACE >', bx + w - 6 - Math.ceil(ctx.measureText('SPACE >').width), by + h - 11);
+                }
+            } else if (peaceNearNpc && (peaceStep === 'GO_SHOP' || peaceStep === 'FREE')) {
+                drawPeaceLabel(ctx, 'SPACE to interact', player.x + player.width / 2, player.y - 22, '#ffcc00');
+            }
+        }
+
+        // Boofemo is embedded in the page (no outside file) so his picture can never fail to load.
+        // boofemoSmall is a pre-made crisp half-size version of the same art, used in the arena cutscene.
+        let boofemoLoaded = false;
+        const boofemoSmall = new Image();
+        boofemoSmall.onload = () => { boofemoLoaded = true; };
+        boofemoSmall.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACwAAAAfCAYAAACcai8CAAACh0lEQVR42q2WO3LbMBCGFxyNe16BF2AlN7qANaOJOldhG91BjcaN7pBaqdQxoxmlcJvGbsIL6ArMuFSzLkTAiyUeC1BsRIrA7revH1Qw4aoff6JkXfe2UcEF5/5mZ1mqmK3COD73aDbeETZprYChSIGkhruX5+Q9vle4KAEXJdS7Y9TMjC7CRQkqwWn3trEdI4L68x+G8trvnn44beMHJCWsEBvIqUSCDfW3TweWbqIZnQQ93Kf4LUS9KMhuCH70LnHAnRm2Gp4aJIbr3XE0GIhogEz/kv9d76ZUdQbLUnXnHjWIZYDB/nvdDGuegxChd7gos0C/gGOlHhzAK0xyRDOqZSzHlgVc747AezpqlMlXZBaMzXp3hBrG/mTArC1E5RtA8dDenr9/u/3++m3fA4Bq1gbWaDgDlRwaAMC03DG53tItyy9YDTwAWg4csJGKKTlw4CQKZdnKdAJsdW3gsj6ppBmo2hUCAFzWJ3Ovn0XQoT72wFbXZuQjGdh1GYPnHqfKkYZ0JSS4jyVRxRbSzF8eDtlylgrsq7ySRmc5Y+CmxJGAKHQImMJ6j+aqXSEHpBv28w7udUls+QIqXNH5ho86culmdW1GpU9unXaFoewXFIwu5Nnevtf+bDwcYD/vrIDMke4LztFuMVhnhl0bJBMdCkgyIyG1in786MmkRu7Vw/t5ZwXHQUNzFPxa4wu37QqnQtP9EpVwtcksV1O7F5km8y9AnV1XC2gwPksUupBCXtYnZZWSqAFXhuraZJ2Ikj5WUzb7Sh5UlEgrxAZcpZ40sWBi0LknnFfWpO2hdZfrrwbNGVCJfKrc0nDJi+lw6PP1LrKWcm3f61FGXQFQaF/59bOv7T4B21rZPcnCcNoAAAAASUVORK5CYII=';
+
+        const comboText = document.getElementById('comboText');
+        const healReadyBadge = document.getElementById('healReadyBadge');
+
+        const V_WIDTH = 480;
+        const V_HEIGHT = 270;
+
+        function resizeCanvas() {
+            canvas.width = V_WIDTH;
+            canvas.height = V_HEIGHT;
+        }
+        resizeCanvas();
+
+        let gameState = 'MENU';
+        let currentStage = 1;
+        let score = 0;
+        let gameTime = 0;
+        let lastTime = 0;
+        let keys = {};
+        let previousKeys = {};
+        let cameraX = 0;
+        let cameraY = 0;
+
+        // Cutscene Timers & Phase State
+        let cutscenePhase = 'NONE'; // 'NONE', 'CELEBRATE', 'SHOW_BOOFEMO', 'DIALOGUE'
+        let cutsceneTimer = 0;
+        let dialogueIdx = 0;
+        let dialogueLines = [];
+        let dialogueDone = null;
+        let awaitingChoice = false;
+        let choiceSet = 'first';
+        let isReplayRun = false;
+        let tookDamageThisRun = false;
+        let enemiesKilledThisRun = 0;
+        let enemiesSpawnedThisRun = 0;
+        let magmaTokens = 0;
+        let frostTokens = 0;
+        let unifiedTokens = false;
+        let tokenTipShown = false;
+        let tokenModalMode = null;
+        let tokenTipIndex = 0;
+        let tokenModalPaused = false;
+        const TOKEN_TIP = [
+            "Your 'Magma Tokens' bar now just says 'Tokens'.",
+            "The number of tokens in total that you earn throughout the rest of your journey will be displayed here.",
+            "You can click on the 'Tokens' bar to see how many of each type of Tokens you have."
+        ];
+        const dialogueChoices = document.getElementById('dialogueChoices');
+        const choiceReplayBtn = document.getElementById('choiceReplayBtn');
+        const choiceContinueBtn = document.getElementById('choiceContinueBtn');
+        const magmaCounter = document.getElementById('magmaCounter');
+        const magmaText = document.getElementById('magmaText');
+        // Boofemo's first-ending dialogue, one speech bubble per line.
+        const BOOFEMO_DIALOGUE = [
+            "Woah! You did it!",
+            "Are you okay friend? You're acting like you don't know me.",
+            "Wait, what has happened to you?!",
+            "It appears that you have lost your memory",
+            "We must work together to find out how to bring it back!",
+            "But first, let me remind you of who I am.",
+            "I am Boofemo and I am your friend. I am the soul that makes your sword.",
+            "My power is manifested in it, meaning if anything bad happened to that sword, it would happen to me.",
+            "So please, try to handle it carefully.",
+            "What's this green thing under me?",
+            "Oh! That's just my resting support.",
+            "Since I don't have a physical body, this is what allows me to communicate with you and be visible.",
+            "Well then, we should get going on our journey.",
+            "You can choose to replay this level without taking any damage to get some 'special' resources.",
+            "Or, you can continue with me to the next stage.",
+            "You can always come back to this level if you want!"
+        ];
+        let boofemoPos = { x: 240, y: 188 };
+
+        // Combo & Combo Heal System
+        let comboCount = 0;
+        let comboTimer = 0;
+        const MAX_COMBO_TIME = 5.0;
+
+        let activeCheckpoint = { stage: 1, x: 40, y: 180 };
+
+        function drawPixelRect(ctx, color, x, y, w, h) {
+            ctx.fillStyle = color;
+            ctx.fillRect(Math.floor(x), Math.floor(y), w, h);
+        }
+
+        const Sprites = {
+            drawKnight(ctx, x, y, facing, state, frame, shieldActive, shieldCharges) {
+                ctx.save();
+                ctx.translate(Math.floor(x + 9), Math.floor(y + 12));
+                if (facing === -1) ctx.scale(-1, 1);
+
+                const legAnim = (state === 'run') ? Math.sin(frame * 0.4) * 3 : 0;
+
+                // Red Cape Behind
+                drawPixelRect(ctx, '#800014', -10, -2, 5, 11);
+                drawPixelRect(ctx, '#b3001b', -9, 0, 4, 10);
+
+                // Left Arm / Blue Shoulder Guard (Inferno Knight's pauldron)
+                drawPixelRect(ctx, '#1d4ed8', -10, -3, 4, 5);
+                drawPixelRect(ctx, '#3b82f6', -10, -2, 2, 3);
+
+                // Dark Steel Legs
+                drawPixelRect(ctx, '#27272a', -5, 5, 4, 6 + legAnim);
+                drawPixelRect(ctx, '#27272a', 1, 5, 4, 6 - legAnim);
+                // Yellow Sheen on Legs
+                drawPixelRect(ctx, '#facc15', -4, 6 + legAnim, 1, 3);
+                drawPixelRect(ctx, '#facc15', 2, 6 - legAnim, 1, 3);
+                // Black Boots
+                drawPixelRect(ctx, '#09090b', -6, 10 + legAnim, 5, 2);
+                drawPixelRect(ctx, '#09090b', 1, 10 - legAnim, 5, 2);
+
+                // Dark Steel Body Armor
+                drawPixelRect(ctx, '#18181b', -6, -4, 12, 10);
+                drawPixelRect(ctx, '#27272a', -5, -3, 10, 8);
+                // Yellow Trim Edging on Armor
+                drawPixelRect(ctx, '#facc15', -6, -4, 12, 1);
+                drawPixelRect(ctx, '#facc15', -6, 5, 12, 1);
+                drawPixelRect(ctx, '#facc15', -6, -4, 1, 10);
+                drawPixelRect(ctx, '#facc15', 5, -4, 1, 10);
+
+                // Red Templar Cross Emblem on Chest
+                drawPixelRect(ctx, '#dc2626', -1, -2, 2, 6);
+                drawPixelRect(ctx, '#dc2626', -3, 0, 6, 2);
+                drawPixelRect(ctx, '#f87171', -1, 0, 2, 2);
+
+                // Helmet - Bucket Helm
+                drawPixelRect(ctx, '#18181b', -6, -12, 12, 8);
+                // Golden Crown trim on top
+                drawPixelRect(ctx, '#eab308', -5, -13, 10, 2);
+                drawPixelRect(ctx, '#fef08a', -3, -13, 6, 1);
+
+                // Visor Windows / Large Eyes
+                drawPixelRect(ctx, '#ffffff', -4, -10, 4, 4);
+                drawPixelRect(ctx, '#ffffff', 1, -10, 4, 4);
+                // Pupils and pupil highlights
+                drawPixelRect(ctx, '#000000', -3, -9, 2, 3);
+                drawPixelRect(ctx, '#000000', 2, -9, 2, 3);
+                drawPixelRect(ctx, '#facc15', -4, -11, 4, 1);
+                drawPixelRect(ctx, '#facc15', 1, -11, 4, 1);
+
+                // Dash trail effect
+                if (state === 'dash') {
+                    drawPixelRect(ctx, '#38bdf8', -12, -8, 3, 16);
+                    drawPixelRect(ctx, '#e0f2fe', -14, -4, 2, 10);
+                }
+
+                // Glowing Blue Lightning Sword (removed in the area of peace)
+                if (swordHidden) {
+                    // no sword
+                } else if (state === 'attack') {
+                    ctx.save();
+                    ctx.rotate(0.3);
+                    // Sword Hilt & Guard
+                    drawPixelRect(ctx, '#94a3b8', 6, -6, 2, 6);
+                    drawPixelRect(ctx, '#64748b', 4, -4, 6, 2);
+                    // Broad Blade (Cyan / Glowing Blue)
+                    drawPixelRect(ctx, '#0284c7', 8, -16, 6, 14);
+                    drawPixelRect(ctx, '#38bdf8', 9, -15, 4, 12);
+                    drawPixelRect(ctx, '#f0f9ff', 10, -14, 2, 10);
+                    // Sword Tip
+                    drawPixelRect(ctx, '#0284c7', 9, -18, 4, 2);
+                    drawPixelRect(ctx, '#38bdf8', 10, -19, 2, 1);
+
+                    // Electric Sparks / Lightning Arcs around Sword
+                    const sparkOffset = Math.floor(frame % 3);
+                    drawPixelRect(ctx, '#38bdf8', 14 + sparkOffset, -14, 2, 3);
+                    drawPixelRect(ctx, '#00ffff', 5 - sparkOffset, -12, 2, 2);
+                    drawPixelRect(ctx, '#38bdf8', 13, -8 + sparkOffset, 3, 2);
+                    ctx.restore();
+                } else {
+                    // Idle / Upright Stance
+                    // Sword Hilt & Guard
+                    drawPixelRect(ctx, '#94a3b8', 5, -3, 2, 5);
+                    drawPixelRect(ctx, '#64748b', 3, -1, 6, 2);
+                    // Broad Blade (Cyan / Glowing Blue)
+                    drawPixelRect(ctx, '#0284c7', 5, -13, 6, 12);
+                    drawPixelRect(ctx, '#38bdf8', 6, -12, 4, 10);
+                    drawPixelRect(ctx, '#f0f9ff', 7, -11, 2, 8);
+                    // Sword Tip
+                    drawPixelRect(ctx, '#0284c7', 6, -15, 4, 2);
+                    drawPixelRect(ctx, '#38bdf8', 7, -16, 2, 1);
+
+                    // Lightning Sparks
+                    const spark = Math.floor(frame * 2) % 4;
+                    if (spark === 0) {
+                        drawPixelRect(ctx, '#38bdf8', 12, -14, 2, 2);
+                        drawPixelRect(ctx, '#00ffff', 2, -10, 2, 3);
+                    } else if (spark === 1) {
+                        drawPixelRect(ctx, '#00ffff', 12, -8, 3, 2);
+                        drawPixelRect(ctx, '#38bdf8', 3, -15, 2, 2);
+                    } else if (spark === 2) {
+                        drawPixelRect(ctx, '#38bdf8', 11, -16, 2, 3);
+                        drawPixelRect(ctx, '#00ffff', 2, -6, 3, 2);
+                    } else {
+                        drawPixelRect(ctx, '#00ffff', 12, -11, 2, 2);
+                        drawPixelRect(ctx, '#38bdf8', 3, -12, 2, 2);
+                    }
+                }
+
+                // Shield Aura
+                if (shieldActive) {
+                    ctx.save();
+                    const auraPulse = Math.sin(frame * 0.3) * 2;
+                    ctx.strokeStyle = '#00ffff';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(0, -2, 18 + auraPulse, 0, Math.PI * 2);
+                    ctx.stroke();
+
+                    ctx.fillStyle = 'rgba(0, 255, 255, 0.15)';
+                    ctx.beginPath();
+                    ctx.arc(0, -2, 18 + auraPulse, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    for (let i = 0; i < shieldCharges; i++) {
+                        const angle = (i * (Math.PI * 2 / 3)) + (frame * 0.1);
+                        const px = Math.cos(angle) * 20;
+                        const py = Math.sin(angle) * 20 - 2;
+                        drawPixelRect(ctx, '#ffffff', px - 2, py - 2, 4, 4);
+                        drawPixelRect(ctx, '#00ffff', px - 1, py - 1, 2, 2);
+                    }
+                    ctx.restore();
+                }
+
+                ctx.restore();
+            },
+
+            drawKnightPortrait(ctx) {
+                ctx.clearRect(0, 0, 80, 80);
+                ctx.save();
+                ctx.translate(40, 52);
+                ctx.scale(2.5, 2.5);
+
+                // Body & Bucket Helm
+                drawPixelRect(ctx, '#18181b', -6, -12, 12, 12);
+                drawPixelRect(ctx, '#eab308', -5, -13, 10, 2);
+                drawPixelRect(ctx, '#ffffff', -4, -10, 4, 4);
+                drawPixelRect(ctx, '#ffffff', 1, -10, 4, 4);
+                drawPixelRect(ctx, '#000000', -3, -9, 2, 3);
+                drawPixelRect(ctx, '#000000', 2, -9, 2, 3);
+                
+                // Red Chest Emblem
+                drawPixelRect(ctx, '#18181b', -6, 0, 12, 8);
+                drawPixelRect(ctx, '#dc2626', -1, 1, 2, 5);
+                drawPixelRect(ctx, '#dc2626', -3, 3, 6, 2);
+
+                // Sword Blade
+                drawPixelRect(ctx, '#0284c7', 7, -15, 4, 16);
+                drawPixelRect(ctx, '#38bdf8', 8, -14, 2, 14);
+
+                ctx.restore();
+            },
+
+            drawBoofemoPixel(ctx, x, y, frame) {
+                ctx.save();
+                ctx.translate(Math.floor(x), Math.floor(y));
+                const floatOffset = Math.sin(frame * 0.2) * 3;
+
+                // Glowing Aura
+                ctx.fillStyle = 'rgba(255, 105, 180, 0.3)';
+                ctx.beginPath();
+                ctx.arc(0, -12 + floatOffset, 16, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Character Base
+                drawPixelRect(ctx, '#ff69b4', -10, -22 + floatOffset, 20, 18);
+                drawPixelRect(ctx, '#ffb6c1', -8, -20 + floatOffset, 16, 14);
+
+                // Cute Big Eyes & Sparkles
+                drawPixelRect(ctx, '#000000', -6, -16 + floatOffset, 4, 5);
+                drawPixelRect(ctx, '#000000', 2, -16 + floatOffset, 4, 5);
+                drawPixelRect(ctx, '#ffffff', -5, -15 + floatOffset, 2, 2);
+                drawPixelRect(ctx, '#ffffff', 3, -15 + floatOffset, 2, 2);
+
+                // Blush & Smile
+                drawPixelRect(ctx, '#ff1493', -8, -11 + floatOffset, 3, 2);
+                drawPixelRect(ctx, '#ff1493', 5, -11 + floatOffset, 3, 2);
+                drawPixelRect(ctx, '#ff007f', -2, -11 + floatOffset, 4, 2);
+
+                // Golden Crown
+                drawPixelRect(ctx, '#ffd700', -6, -26 + floatOffset, 12, 4);
+                drawPixelRect(ctx, '#ffffff', -2, -25 + floatOffset, 4, 2);
+
+                ctx.restore();
+            },
+
+            drawCrawlerDemon(ctx, x, y, frame, state, hp, maxHp) {
+                ctx.save();
+                ctx.translate(Math.floor(x + 10), Math.floor(y + 10));
+                const bounce = Math.sin(frame * 0.3) * 2;
+                
+                if (state === 'windup') drawPixelRect(ctx, '#ff6600', -10, -10 + bounce, 20, 20);
+                else if (state === 'lunge') drawPixelRect(ctx, '#ff0000', -12, -8 + bounce, 24, 16);
+
+                drawPixelRect(ctx, state === 'lunge' ? '#aa0000' : '#660000', -8, -6 + bounce, 16, 12);
+                drawPixelRect(ctx, '#990000', -6, -4 + bounce, 12, 8);
+                drawPixelRect(ctx, state === 'windup' ? '#ff0000' : '#ffff00', -4, -2 + bounce, 2, 2);
+                drawPixelRect(ctx, state === 'windup' ? '#ff0000' : '#ffff00', 2, -2 + bounce, 2, 2);
+                drawPixelRect(ctx, '#333333', -7, -10 + bounce, 3, 5);
+                drawPixelRect(ctx, '#333333', 4, -10 + bounce, 3, 5);
+                drawPixelRect(ctx, '#111', -8, 6, 4, 4);
+                drawPixelRect(ctx, '#111', 4, 6, 4, 4);
+
+                drawPixelRect(ctx, '#333333', -10, -16, 20, 3);
+                drawPixelRect(ctx, '#ff2200', -10, -16, Math.max(0, (hp / maxHp) * 20), 3);
+
+                ctx.restore();
+            },
+
+            drawFlyingImp(ctx, x, y, frame, state, hp, maxHp) {
+                ctx.save();
+                ctx.translate(Math.floor(x + 10), Math.floor(y + 10));
+                const wing = Math.sin(frame * 0.5) * 6;
+                
+                if (state === 'windup') drawPixelRect(ctx, '#ffaa00', -10, -10, 20, 20);
+
+                drawPixelRect(ctx, '#330033', -12, -8 + wing, 6, 8);
+                drawPixelRect(ctx, '#330033', 6, -8 + wing, 6, 8);
+                drawPixelRect(ctx, '#cc0044', -6, -6, 12, 12);
+                drawPixelRect(ctx, state === 'windup' ? '#ff0000' : '#00ffff', -3, -2, 2, 3);
+                drawPixelRect(ctx, state === 'windup' ? '#ff0000' : '#00ffff', 1, -2, 2, 3);
+                drawPixelRect(ctx, '#ffcc00', -2, 3, 4, 2);
+
+                drawPixelRect(ctx, '#333333', -10, -14, 20, 3);
+                drawPixelRect(ctx, '#ff2200', -10, -14, Math.max(0, (hp / maxHp) * 20), 3);
+
+                ctx.restore();
+            },
+
+            drawDemonBoss(ctx, x, y, frame, state, invulnTimer) {
+                ctx.save();
+                ctx.translate(Math.floor(x + 32), Math.floor(y + 32));
+                const pulse = Math.sin(frame * 0.2) * 2;
+
+                if (invulnTimer > 0 && Math.floor(frame) % 2 === 0) {
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(-32, -32, 64, 64);
+                    ctx.restore();
+                    return;
+                }
+
+                if (state === 'cast' || state === 'slam') {
+                    ctx.fillStyle = 'rgba(255, 0, 0, 0.25)';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 48 + pulse * 2, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                const wingSpread = Math.sin(frame * 0.15) * 8;
+                drawPixelRect(ctx, '#330000', -48 - wingSpread, -30, 24, 40);
+                drawPixelRect(ctx, '#330000', 24 + wingSpread, -30, 24, 40);
+
+                drawPixelRect(ctx, '#550000', -24, -20, 48, 52);
+                drawPixelRect(ctx, '#880000', -18, -14, 36, 40);
+
+                drawPixelRect(ctx, '#ffaa00', -28, -38, 8, 20);
+                drawPixelRect(ctx, '#ffaa00', 20, -38, 8, 20);
+
+                drawPixelRect(ctx, '#ffff00', -12, -12, 6, 6);
+                drawPixelRect(ctx, '#ffff00', 6, -12, 6, 6);
+                drawPixelRect(ctx, '#ff0000', -10, -10, 2, 2);
+                drawPixelRect(ctx, '#ff0000', 8, -10, 2, 2);
+
+                drawPixelRect(ctx, '#ff6600', -8, 6, 16, 16);
+                drawPixelRect(ctx, '#ffff00', -4, 10, 8, 8);
+
+                ctx.restore();
+            },
+
+            drawCheckpointStatue(ctx, x, y, frame) {
+                ctx.save();
+                ctx.translate(Math.floor(x + 8), Math.floor(y + 16));
+                drawPixelRect(ctx, '#444444', -8, 8, 16, 8);
+                drawPixelRect(ctx, '#666666', -6, 6, 12, 2);
+                drawPixelRect(ctx, '#00ffcc', -4, -10, 8, 16);
+                drawPixelRect(ctx, '#ffffff', -2, -14, 4, 4);
+
+                const glow = Math.sin(frame * 0.3) * 3;
+                ctx.fillStyle = 'rgba(0, 255, 200, 0.3)';
+                ctx.beginPath();
+                ctx.arc(0, -18, 8 + glow, 0, Math.PI * 2);
+                ctx.fill();
+
+                drawPixelRect(ctx, '#ffffff', -3, -21, 6, 6);
+                drawPixelRect(ctx, '#00ffaa', -2, -20, 4, 4);
+                ctx.restore();
+            },
+
+            drawFireball(ctx, x, y) {
+                drawPixelRect(ctx, '#ffcc00', x, y, 8, 8);
+                drawPixelRect(ctx, '#ff3300', x + 1, y + 1, 6, 6);
+                drawPixelRect(ctx, '#ffffff', x + 2, y + 2, 4, 4);
+            },
+
+            drawMeteor(ctx, x, y) {
+                drawPixelRect(ctx, '#aa3300', x, y, 10, 10);
+                drawPixelRect(ctx, '#ff6600', x + 2, y + 2, 6, 6);
+                drawPixelRect(ctx, '#ffff00', x + 3, y + 3, 4, 4);
+            },
+
+            drawChalice(ctx, x, y, frame) {
+                ctx.save();
+                ctx.translate(Math.floor(x + 12), Math.floor(y + 16));
+                const glow = Math.sin(frame * 0.2) * 3;
+                drawPixelRect(ctx, '#ffcc00', -8, 4, 16, 4);
+                drawPixelRect(ctx, '#e6b800', -3, -4, 6, 8);
+                drawPixelRect(ctx, '#ffdd00', -10, -14, 20, 10);
+                drawPixelRect(ctx, '#00ffff', -5, -18 + glow, 10, 6);
+                ctx.restore();
+            },
+
+            drawPortal(ctx, x, y, frame, active) {
+                ctx.save();
+                ctx.translate(Math.floor(x + 12), Math.floor(y + 20));
+                const pulse = Math.sin(frame * 0.3) * 3;
+
+                drawPixelRect(ctx, '#443355', -14, -24, 28, 30);
+                drawPixelRect(ctx, '#110022', -10, -20, 20, 26);
+
+                if (active) {
+                    ctx.fillStyle = 'rgba(0, 255, 200, 0.4)';
+                    ctx.beginPath();
+                    ctx.arc(0, -7, 10 + pulse, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    drawPixelRect(ctx, '#00ffff', -6, -13, 12, 12);
+                    drawPixelRect(ctx, '#ffffff', -3, -10, 6, 6);
+                } else {
+                    drawPixelRect(ctx, '#ff0000', -4, -10, 8, 8);
+                }
+                ctx.restore();
+            }
+        };
+
+        class Player {
+            constructor() {
+                this.width = 18;
+                this.height = 24;
+                this.x = 50;
+                this.y = 100;
+                this.vx = 0;
+                this.vy = 0;
+                this.speed = 140;
+                this.jumpForce = -260;
+                this.grounded = false;
+                this.facing = 1;
+
+                this.hearts = 3.0;
+                this.maxHearts = 3.0;
+
+                this.jumpsLeft = 2;
+                this.coyoteTimer = 0;
+
+                this.isDashing = false;
+                this.dashTimer = 0;
+                this.dashCooldown = 0;
+                this.isAttacking = false;
+                this.attackTimer = 0;
+                this.attackId = 0; // Unique ID for each sword slash swing
+                this.invulnerableTimer = 0;
+
+                this.shieldActive = false;
+                this.shieldCharges = 3;
+                this.maxShieldCharges = 3;
+                this.shieldCooldown = 0;
+                this.maxShieldCooldown = 7.0;
+
+                this.animState = 'idle';
+                this.animFrame = 0;
+
+                this.ridingPlatform = null;
+            }
+
+            reset(x, y) {
+                this.x = x;
+                this.y = y;
+                this.vx = 0;
+                this.vy = 0;
+                this.jumpsLeft = 2;
+                this.isDashing = false;
+                this.isAttacking = false;
+                this.invulnerableTimer = 0;
+                this.shieldActive = false;
+                this.shieldCharges = 3;
+                this.shieldCooldown = 0;
+                this.ridingPlatform = null;
+                this.updateShieldHUD();
+                this.renderHearts();
+            }
+
+            renderHearts() {
+                let html = "";
+                let current = this.hearts;
+
+                for (let i = 0; i < this.maxHearts; i++) {
+                    if (current >= 1.0) {
+                        html += "<span class='text-red-500 animate-pulse'>❤️</span>";
+                        current -= 1.0;
+                    } else if (current >= 0.5) {
+                        html += "<span class='text-red-400'>💔</span>";
+                        current -= 0.5;
+                    } else {
+                        html += "<span class='opacity-20 grayscale'>💔</span>";
+                    }
+                }
+                heartsContainer.innerHTML = html;
+            }
+
+            healHalfHeart() {
+                if (this.hearts < this.maxHearts) {
+                    this.hearts = Math.min(this.maxHearts, this.hearts + 0.5);
+                    this.renderHearts();
+                    audio.playHeal();
+                    for (let i = 0; i < 10; i++) particles.push(new Particle(this.x + 8, this.y + 10, '#00ff66'));
+                }
+            }
+
+            fullHeal() {
+                this.hearts = this.maxHearts;
+                this.renderHearts();
+            }
+
+            activateShield() {
+                if (this.shieldCooldown <= 0 && !this.shieldActive) {
+                    this.shieldActive = true;
+                    this.shieldCharges = 3;
+                    audio.playShieldActivate();
+                    this.updateShieldHUD();
+                }
+            }
+
+            updateShieldHUD() {
+                if (this.shieldActive) {
+                    shieldHudText.textContent = `🛡 SHIELD: ${this.shieldCharges}/3 HITS`;
+                    shieldHudText.className = "text-cyan-300 font-bold glow-cyan";
+                    shieldCdContainer.classList.add('hidden');
+                } else if (this.shieldCooldown > 0) {
+                    shieldHudText.textContent = `RECHARGING: ${this.shieldCooldown.toFixed(1)}s`;
+                    shieldHudText.className = "text-amber-400 font-bold";
+                    shieldCdContainer.classList.remove('hidden');
+                    const cdPct = ((this.maxShieldCooldown - this.shieldCooldown) / this.maxShieldCooldown) * 100;
+                    shieldCdBar.style.width = `${cdPct}%`;
+                } else {
+                    shieldHudText.textContent = `🛡️ SHIELD: READY [J]`;
+                    shieldHudText.className = "text-cyan-300 font-bold glow-cyan";
+                    shieldCdContainer.classList.add('hidden');
+                }
+            }
+
+            update(dt, platforms) {
+                this.animFrame += dt * 10;
+                if (this.invulnerableTimer > 0) this.invulnerableTimer -= dt;
+                if (this.dashCooldown > 0) this.dashCooldown -= dt;
+
+                // Transfer velocity from riding moving platform to player
+                if (this.ridingPlatform && !this.ridingPlatform.broken) {
+                    this.x += this.ridingPlatform.dx;
+                    this.y += this.ridingPlatform.dy;
+                } else {
+                    this.ridingPlatform = null;
+                }
+
+                if (this.shieldCooldown > 0) {
+                    this.shieldCooldown -= dt;
+                    if (this.shieldCooldown <= 0) {
+                        this.shieldCooldown = 0;
+                        this.updateShieldHUD();
+                    } else {
+                        this.updateShieldHUD();
+                    }
+                }
+
+                if (keys['KeyJ'] && !previousKeys['KeyJ']) {
+                    this.activateShield();
+                }
+
+                if (keys['KeyH'] && !previousKeys['KeyH']) {
+                    triggerComboHeal();
+                }
+
+                if (this.isDashing) {
+                    this.dashTimer -= dt;
+                    this.vy = 0;
+                    this.vx = this.facing * 340;
+                    if (this.dashTimer <= 0) this.isDashing = false;
+                } else {
+                    let moveDir = 0;
+                    if (keys['ArrowLeft'] || keys['KeyA']) moveDir -= 1;
+                    if (keys['ArrowRight'] || keys['KeyD']) moveDir += 1;
+
+                    if (moveDir !== 0) {
+                        this.vx = moveDir * this.speed;
+                        this.facing = moveDir;
+                        this.animState = 'run';
+                    } else {
+                        this.vx *= 0.7;
+                        this.animState = 'idle';
+                    }
+
+                    this.vy += 750 * dt;
+                }
+
+                if (this.isAttacking) {
+                    this.attackTimer -= dt;
+                    if (this.attackTimer <= 0) this.isAttacking = false;
+                }
+
+                if ((keys['ShiftLeft'] || keys['ShiftRight'] || keys['KeyL']) && this.dashCooldown <= 0 && !this.isDashing) {
+                    this.isDashing = true;
+                    this.dashTimer = 0.18;
+                    this.dashCooldown = 0.6;
+                    audio.playJump();
+                }
+
+                if ((keys['KeyZ'] || keys['KeyX'] || keys['MouseLeft']) && !this.isAttacking) {
+                    this.isAttacking = true;
+                    this.attackTimer = 0.22;
+                    this.attackId++; // New swing ID
+                    audio.playAttack();
+                }
+
+                if (this.grounded) {
+                    this.coyoteTimer = 0.1;
+                    this.jumpsLeft = 2;
+                } else {
+                    this.coyoteTimer -= dt;
+                }
+
+                const isJumpPressed = (keys['KeyW'] || keys['ArrowUp'] || keys['Space'] || keys['KeyK']) &&
+                                     !(previousKeys['KeyW'] || previousKeys['ArrowUp'] || previousKeys['Space'] || previousKeys['KeyK']);
+
+                if (isJumpPressed) {
+                    if (this.grounded || this.coyoteTimer > 0) {
+                        this.vy = this.jumpForce;
+                        this.coyoteTimer = 0;
+                        this.jumpsLeft = 1;
+                        this.ridingPlatform = null;
+                        audio.playJump();
+                    } else if (this.jumpsLeft > 0) {
+                        this.vy = this.jumpForce;
+                        this.jumpsLeft = 0;
+                        this.ridingPlatform = null;
+                        audio.playJump();
+                        for (let i = 0; i < 8; i++) particles.push(new Particle(this.x + 9, this.y + 20, '#00ffff'));
+                    }
+                }
+
+                this.x += this.vx * dt;
+                platforms.forEach(p => {
+                    if (p.broken || p.type === 'mountain') return;
+                    if (this.checkCollision(this, p)) {
+                        // Prevent vertical moving platforms rising UP from triggering false horizontal side pushes
+                        const isStandingOnTop = (this.y + this.height) <= (p.y + 6);
+                        if (!isStandingOnTop) {
+                            if (this.vx > 0) this.x = p.x - this.width;
+                            else if (this.vx < 0) this.x = p.x + p.w;
+                        }
+                    }
+                });
+
+                this.grounded = false;
+                this.ridingPlatform = null;
+                this.y += this.vy * dt;
+                platforms.forEach(p => {
+                    if (p.broken) return;
+                    if (p.type === 'mountain' && (this.vy < 0 || this.y + this.height - this.vy * dt > p.y + 2)) return;
+                    if (this.checkCollision(this, p)) {
+                        if (this.vy >= 0 && (this.y + this.height - this.vy * dt) <= p.y + 12) {
+                            this.y = p.y - this.height;
+                            this.vy = 0;
+                            this.grounded = true;
+                            this.ridingPlatform = p;
+                            p.onSteppedOn(dt);
+                        } else if (this.vy < 0) {
+                            this.y = p.y + p.h;
+                            this.vy = 0;
+                        }
+                    }
+                });
+
+                if (this.isAttacking) this.animState = 'attack';
+                else if (this.isDashing) this.animState = 'dash';
+                else if (!this.grounded) this.animState = 'jump';
+            }
+
+            checkCollision(rect1, rect2) {
+                return (
+                    rect1.x < rect2.x + (rect2.w || rect2.width) &&
+                    rect1.x + rect1.width > rect2.x &&
+                    rect1.y < rect2.y + (rect2.h || rect2.height) &&
+                    rect1.y + rect1.height > rect2.y
+                );
+            }
+
+            takeDamage(knockbackDir = 0) {
+                if (this.invulnerableTimer > 0 || this.isDashing) return;
+
+                if (this.shieldActive) {
+                    this.shieldCharges--;
+                    audio.playShieldBlock();
+                    
+                    for (let i = 0; i < 8; i++) particles.push(new Particle(this.x + 8, this.y + 10, '#00ffff'));
+
+                    if (this.shieldCharges <= 0) {
+                        this.shieldActive = false;
+                        this.shieldCooldown = this.maxShieldCooldown;
+                        audio.playShieldBreak();
+                        for (let i = 0; i < 15; i++) particles.push(new Particle(this.x + 8, this.y + 10, '#ffffff'));
+                    }
+                    this.updateShieldHUD();
+                    this.invulnerableTimer = 0.5;
+                    return;
+                }
+
+                this.hearts -= 0.5;
+                tookDamageThisRun = true;
+                this.renderHearts();
+                this.invulnerableTimer = 1.25;
+                this.vy = -150;
+                this.vx = knockbackDir * 180;
+                audio.playHit();
+
+                if (this.hearts <= 0) {
+                    handlePlayerDeath();
+                }
+            }
+
+            draw(ctx) {
+                if (this.invulnerableTimer > 0 && Math.floor(Date.now() / 80) % 2 === 0) return;
+                Sprites.drawKnight(ctx, this.x, this.y, this.facing, this.animState, this.animFrame, this.shieldActive, this.shieldCharges);
+            }
+        }
+
+        class Platform {
+            constructor(x, y, w, h, type = 'stone', options = {}) {
+                this.x = x;
+                this.y = y;
+                this.startX = x;
+                this.startY = y;
+                this.w = w;
+                this.h = h;
+                this.type = type; // stone, obsidian, crumble, moving, sinking
+                
+                // Dynamic Options
+                this.moveRangeX = options.moveRangeX || 0;
+                this.moveRangeY = options.moveRangeY || 0;
+                this.speed = options.speed || 1.5;
+                this.timer = Math.random() * Math.PI * 2;
+
+                this.stepped = false;
+                this.crumbleTimer = 0.7; // 0.7s after stepped on, crumbles
+                this.broken = false;
+                this.shake = 0;
+
+                this.dx = 0;
+                this.dy = 0;
+            }
+
+            onSteppedOn(dt) {
+                if (this.type === 'crumble' && !this.stepped && !this.broken) {
+                    this.stepped = true;
+                    audio.playCrumble();
+                }
+                if (this.type === 'sinking') {
+                    this.y += 20 * dt;
+                }
+            }
+
+            update(dt) {
+                const prevX = this.x;
+                const prevY = this.y;
+
+                if (this.type === 'moving') {
+                    this.timer += dt * this.speed;
+                    this.x = this.startX + Math.sin(this.timer) * this.moveRangeX;
+                    this.y = this.startY + Math.cos(this.timer) * this.moveRangeY;
+                }
+
+                this.dx = this.x - prevX;
+                this.dy = this.y - prevY;
+
+                if (this.type === 'crumble' && this.stepped && !this.broken) {
+                    this.crumbleTimer -= dt;
+                    this.shake = (Math.random() - 0.5) * 4;
+                    if (this.crumbleTimer <= 0) {
+                        this.broken = true;
+                        audio.playCrumble();
+                        for (let i = 0; i < 10; i++) {
+                            particles.push(new Particle(this.x + Math.random() * this.w, this.y, '#aa4400'));
+                        }
+                    }
+                }
+            }
+
+            draw(ctx) {
+                if (this.broken) return;
+                ctx.save();
+                const drawX = this.x + this.shake;
+                const drawY = this.y;
+
+                if (this.type === 'mountain') {
+                    MountainLevel.drawPlatform(ctx, this);
+                } else if (this.type === 'stone') {
+                    drawPixelRect(ctx, '#3a3d40', drawX, drawY, this.w, this.h);
+                    drawPixelRect(ctx, '#585c61', drawX, drawY, this.w, 3);
+                } else if (this.type === 'obsidian' || this.type === 'moving' || this.type === 'sinking') {
+                    drawPixelRect(ctx, '#1a0d1a', drawX, drawY, this.w, this.h);
+                    drawPixelRect(ctx, this.type === 'moving' ? '#00ffff' : '#ff3300', drawX, drawY, this.w, 2);
+                } else if (this.type === 'crumble') {
+                    drawPixelRect(ctx, '#773311', drawX, drawY, this.w, this.h);
+                    drawPixelRect(ctx, '#ffaa44', drawX, drawY, this.w, 2);
+                    // Cracks
+                    if (this.stepped) {
+                        drawPixelRect(ctx, '#110000', drawX + this.w * 0.3, drawY + 2, 2, this.h - 4);
+                        drawPixelRect(ctx, '#110000', drawX + this.w * 0.6, drawY + 2, 2, this.h - 4);
+                    }
+                }
+                ctx.restore();
+            }
+        }
+
+        class FireBarrier {
+            constructor(x, y, w, h, interval = 2.0) {
+                this.x = x;
+                this.y = y;
+                this.w = w;
+                this.h = h;
+                this.interval = interval;
+                this.timer = 0;
+                this.active = true;
+            }
+
+            update(dt, player) {
+                this.timer += dt;
+                if (this.timer >= this.interval) {
+                    this.timer = 0;
+                    this.active = !this.active;
+                }
+
+                if (this.active && player.checkCollision(player, this)) {
+                    player.takeDamage(Math.sign(player.x - this.x));
+                }
+            }
+
+            draw(ctx) {
+                ctx.save();
+                if (this.active) {
+                    ctx.fillStyle = 'rgba(255, 68, 0, 0.7)';
+                    ctx.fillRect(this.x, this.y, this.w, this.h);
+                    drawPixelRect(ctx, '#ffff00', this.x + 2, this.y, this.w - 4, this.h);
+                } else {
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+                    ctx.fillRect(this.x, this.y, this.w, this.h);
+                }
+                ctx.restore();
+            }
+        }
+
+        class LavaGeyser {
+            constructor(x, targetY) {
+                this.x = x;
+                this.y = targetY;
+                this.timer = Math.random() * 2;
+                this.state = 'idle'; // idle, warning, erupting
+                this.stateTimer = 0;
+            }
+
+            update(dt, player) {
+                this.timer += dt;
+                if (this.state === 'idle' && this.timer > 3.5) {
+                    this.state = 'warning';
+                    this.stateTimer = 1.0;
+                    this.timer = 0;
+                } else if (this.state === 'warning') {
+                    this.stateTimer -= dt;
+                    if (this.stateTimer <= 0) {
+                        this.state = 'erupting';
+                        this.stateTimer = 1.2;
+                        audio.playLava();
+                    }
+                } else if (this.state === 'erupting') {
+                    this.stateTimer -= dt;
+                    const geyserBox = { x: this.x - 8, y: this.y - 120, w: 16, h: 140 };
+                    if (player.checkCollision(player, geyserBox)) {
+                        player.takeDamage(0);
+                    }
+                    if (this.stateTimer <= 0) {
+                        this.state = 'idle';
+                    }
+                }
+            }
+
+            draw(ctx) {
+                ctx.save();
+                if (this.state === 'warning') {
+                    ctx.fillStyle = 'rgba(255, 0, 0, 0.4)';
+                    ctx.fillRect(this.x - 10, this.y - 120, 20, 120);
+                } else if (this.state === 'erupting') {
+                    ctx.fillStyle = '#ff3300';
+                    ctx.fillRect(this.x - 10, this.y - 130, 20, 130);
+                    ctx.fillStyle = '#ffff00';
+                    ctx.fillRect(this.x - 5, this.y - 125, 10, 125);
+                }
+                ctx.restore();
+            }
+        }
+
+        class Checkpoint {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+            }
+
+            draw(ctx, frame) {
+                Sprites.drawCheckpointStatue(ctx, this.x, this.y, frame);
+            }
+        }
+
+        class Projectile {
+            constructor(x, y, vx, vy, isMeteor = false) {
+                this.x = x;
+                this.y = y;
+                this.vx = vx;
+                this.vy = vy;
+                this.width = isMeteor ? 10 : 8;
+                this.height = isMeteor ? 10 : 8;
+                this.isMeteor = isMeteor;
+                this.active = true;
+            }
+
+            update(dt, player, platforms) {
+                this.x += this.vx * dt;
+                this.y += this.vy * dt;
+
+                if (player.checkCollision(this, player)) {
+                    player.takeDamage(Math.sign(this.vx));
+                    this.active = false;
+                    for (let i = 0; i < 6; i++) particles.push(new Particle(this.x, this.y, '#ff4400'));
+                }
+
+                platforms.forEach(p => {
+                    if (p.broken) return;
+                    if (player.checkCollision(this, p)) {
+                        this.active = false;
+                        for (let i = 0; i < 4; i++) particles.push(new Particle(this.x, this.y, '#ffaa00'));
+                    }
+                });
+            }
+
+            draw(ctx) {
+                if (!this.active) return;
+                if (this.isMeteor) Sprites.drawMeteor(ctx, this.x, this.y);
+                else Sprites.drawFireball(ctx, this.x, this.y);
+            }
+        }
+
+        class Enemy {
+            constructor(x, y, type = 'crawler') {
+                this.x = x;
+                this.y = y;
+                this.type = type;
+                this.width = 20;
+                this.height = 20;
+                this.hp = 60;
+                this.maxHp = 60;
+                this.startX = x;
+                this.dir = 1;
+                this.speed = type === 'imp' ? 55 : 40;
+                this.animFrame = Math.random() * 10;
+                this.dead = false;
+
+                this.state = 'walk';
+                this.attackTimer = 0;
+                this.cooldownTimer = Math.random() * 1.5;
+
+                this.lastHitAttackId = -1; // Prevents multi-hits from single swing
+            }
+
+            update(dt, player, projectiles) {
+                if (this.dead) return;
+                this.animFrame += dt * 10;
+
+                if (this.y > V_HEIGHT + 60) {
+                    this.dead = true;
+                    return;
+                }
+
+                const distToPlayer = Math.hypot((player.x) - (this.x), (player.y) - (this.y));
+
+                if (this.type === 'crawler') {
+                    if (this.state === 'walk') {
+                        this.x += this.dir * this.speed * dt;
+                        if (Math.abs(this.x - this.startX) > 70) this.dir *= -1;
+
+                        this.cooldownTimer -= dt;
+                        if (distToPlayer < 75 && this.cooldownTimer <= 0) {
+                            this.state = 'windup';
+                            this.attackTimer = 0.5;
+                            this.dir = player.x > this.x ? 1 : -1;
+                        }
+                    } else if (this.state === 'windup') {
+                        this.attackTimer -= dt;
+                        if (this.attackTimer <= 0) {
+                            this.state = 'lunge';
+                            this.attackTimer = 0.35;
+                        }
+                    } else if (this.state === 'lunge') {
+                        this.x += this.dir * 180 * dt;
+                        this.attackTimer -= dt;
+                        if (this.attackTimer <= 0) {
+                            this.state = 'walk';
+                            this.cooldownTimer = 1.8;
+                        }
+                    }
+                } else { 
+                    this.y += Math.sin(this.animFrame * 0.3) * 0.8;
+
+                    if (this.state === 'walk') {
+                        this.x += this.dir * this.speed * dt;
+                        if (Math.abs(this.x - this.startX) > 90) this.dir *= -1;
+
+                        this.cooldownTimer -= dt;
+                        if (distToPlayer < 190 && this.cooldownTimer <= 0) {
+                            this.state = 'windup';
+                            this.attackTimer = 0.6;
+                            this.dir = player.x > this.x ? 1 : -1;
+                        }
+                    } else if (this.state === 'windup') {
+                        this.attackTimer -= dt;
+                        if (this.attackTimer <= 0) {
+                            const angle = Math.atan2((player.y + 10) - (this.y + 10), (player.x + 8) - (this.x + 10));
+                            const projVx = Math.cos(angle) * 160;
+                            const projVy = Math.sin(angle) * 160;
+                            projectiles.push(new Projectile(this.x + 8, this.y + 8, projVx, projVy));
+                            audio.playFireball();
+
+                            this.state = 'walk';
+                            this.cooldownTimer = 2.2;
+                        }
+                    }
+                }
+            }
+
+            draw(ctx) {
+                if (this.dead) return;
+                if (this.type === 'crawler') {
+                    Sprites.drawCrawlerDemon(ctx, this.x, this.y, this.animFrame, this.state, this.hp, this.maxHp);
+                } else {
+                    Sprites.drawFlyingImp(ctx, this.x, this.y, this.animFrame, this.state, this.hp, this.maxHp);
+                }
+            }
+        }
+
+        class DemonBoss {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.width = 64;
+                this.height = 64;
+                this.hp = 500;
+                this.maxHp = 500;
+                this.animFrame = 0;
+                this.dead = false;
+                
+                this.vx = 0;
+                this.vy = 0;
+                this.grounded = false;
+                this.jumpTimer = 1.2;
+
+                this.state = 'idle';
+                this.actionTimer = 1.2;
+
+                this.lastHitAttackId = -1; // Fixes one-hit boss bug!
+                this.invulnerableTimer = 0;
+            }
+
+            update(dt, player, projectiles, platforms) {
+                if (this.dead) return;
+                this.animFrame += dt * 10;
+                this.actionTimer -= dt;
+                this.jumpTimer -= dt;
+
+                if (this.invulnerableTimer > 0) this.invulnerableTimer -= dt;
+
+                const distToPlayerX = player.x - this.x;
+                // Enrage below half health: moves and attacks much faster
+                const enraged = this.hp <= this.maxHp / 2;
+                const speed = enraged ? 95 : 70;
+                if (Math.abs(distToPlayerX) > 20) {
+                    this.vx = Math.sign(distToPlayerX) * speed;
+                } else {
+                    this.vx = 0;
+                }
+
+                if (this.jumpTimer <= 0 && this.grounded) {
+                    this.vy = -230;
+                    this.jumpTimer = (enraged ? 1.2 : 1.8) + Math.random() * 1.0;
+                }
+
+                this.vy += 550 * dt;
+
+                this.x += this.vx * dt;
+                if (this.x < 10) this.x = 10;
+                if (this.x > 406) this.x = 406;
+
+                this.grounded = false;
+                this.y += this.vy * dt;
+                platforms.forEach(p => {
+                    if (p.broken) return;
+                    if (player.checkCollision(this, p)) {
+                        if (this.vy > 0) {
+                            this.y = p.y - this.height;
+                            this.vy = 0;
+                            this.grounded = true;
+                        } else if (this.vy < 0) {
+                            this.y = p.y + p.h;
+                            this.vy = 0;
+                        }
+                    }
+                });
+
+                if (this.actionTimer <= 0) {
+                    const randAction = Math.random();
+                    if (randAction < 0.5) {
+                        this.state = 'cast';
+                        this.actionTimer = enraged ? 1.2 : 1.8;
+                        const shots = enraged ? 5 : 3;
+                        for (let i = 0; i < shots; i++) {
+                            const spread = i - (shots - 1) / 2;
+                            setTimeout(() => {
+                                if (this.dead) return;
+                                const angle = Math.atan2((player.y) - (this.y + 20), (player.x) - (this.x + 32)) + (spread * 0.18);
+                                projectiles.push(new Projectile(this.x + 32, this.y + 20, Math.cos(angle) * 220, Math.sin(angle) * 220));
+                                audio.playFireball();
+                            }, i * 150);
+                        }
+                    } else {
+                        this.state = 'slam';
+                        this.actionTimer = enraged ? 1.5 : 2.2;
+                        setTimeout(() => {
+                            if (this.dead) return;
+                            audio.playLava();
+                            for (let p = 0; p < 7; p++) {
+                                projectiles.push(new Projectile(60 + p * 60, 200, 0, -180));
+                            }
+                        }, 500);
+                    }
+                }
+
+                this.updateHUD();
+            }
+
+            updateHUD() {
+                const currentHp = Math.max(0, this.hp);
+                bossHpBar.style.width = `${(currentHp / this.maxHp) * 100}%`;
+                bossHpText.textContent = `${currentHp} / ${this.maxHp} HP`;
+            }
+
+            draw(ctx) {
+                if (this.dead) return;
+                Sprites.drawDemonBoss(ctx, this.x, this.y, this.animFrame, this.state, this.invulnerableTimer);
+            }
+        }
+
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                this.vx = (Math.random() - 0.5) * 80;
+                this.vy = (Math.random() - 0.5) * 80 - 20;
+                this.life = 0.5 + Math.random() * 0.4;
+            }
+
+            update(dt) {
+                this.x += this.vx * dt;
+                this.y += this.vy * dt;
+                this.life -= dt;
+            }
+
+            draw(ctx) {
+                if (this.life <= 0) return;
+                ctx.fillStyle = this.color;
+                ctx.fillRect(Math.floor(this.x), Math.floor(this.y), 2, 2);
+            }
+        }
+
+        const player = new Player();
+        let platforms = [];
+        let fireBarriers = [];
+        let lavaGeysers = [];
+        let enemies = [];
+        let projectiles = [];
+        let particles = [];
+        let startCheckpoint = null;
+        let boss = null;
+        let lavaHeight = V_HEIGHT + 50;
+        let chalicePos = { x: 0, y: 0 };
+        let meteorTimer = 0;
+
+        function incrementCombo() {
+            comboCount++;
+            comboTimer = MAX_COMBO_TIME;
+            updateComboHUD();
+        }
+
+        function updateComboHUD() {
+            comboText.textContent = `COMBO: ${comboCount}`;
+            if (comboCount >= 5) {
+                comboText.className = "text-emerald-400 font-bold glow-green";
+                healReadyBadge.classList.remove('hidden');
+            } else {
+                comboText.className = "text-amber-300 font-bold glow-orange";
+                healReadyBadge.classList.add('hidden');
+            }
+        }
+
+        function triggerComboHeal() {
+            if (comboCount >= 5) {
+                player.healHalfHeart();
+                comboCount = 0;
+                comboTimer = 0;
+                updateComboHUD();
+            }
+        }
+
+        function loadStage(stageNum) {
+            if (stageNum === currentStage) enemiesSpawnedThisRun -= enemies.filter(e => !e.dead).length + (boss && !boss.dead ? 1 : 0);
+            currentStage = stageNum;
+            swordHidden = stageNum === 7;
+            boofemoPos = { x: 240, y: 188 };
+            if (stageNum !== 7) { peaceStep = 'NONE'; peaceFrozen = false; hidePeaceUI(); }
+            platforms = [];
+            fireBarriers = [];
+            lavaGeysers = [];
+            enemies = [];
+            projectiles = [];
+            particles = [];
+            boss = null;
+            cameraX = 0;
+            cameraY = 0;
+            keys = {};
+            previousKeys = {};
+            choiceReplayBtn.textContent = '↻ REPLAY LEVEL';
+            choiceContinueBtn.textContent = '▶ NEXT STAGE';
+            choiceContinueBtn.classList.remove('hidden');
+            bossBarContainer.classList.add('hidden');
+            bossBarContainer.querySelector('.glow-red').textContent = "👹 DEMON LORD KHAL'GORATH";
+            cutsceneOverlay.classList.add('hidden');
+            cutscenePhase = 'NONE';
+            cutsceneTimer = 0;
+            // Bring back any HUD widgets hidden by the ending dialogue.
+            document.querySelectorAll('[data-cs-hide]').forEach(el => { el.style.display = ''; });
+
+            activeCheckpoint = { stage: stageNum, x: 40, y: 180 };
+
+            if (stageNum === 1) {
+                // STAGE 1: THE CITADEL (SLAY DEMONS TO OPEN PORTAL)
+                stageLabel.textContent = "STAGE 1: CITADEL";
+                stageLabel.className = "text-cyan-400 glow-cyan";
+                lavaHeight = V_HEIGHT + 100;
+
+                startCheckpoint = new Checkpoint(40, 196);
+
+                platforms.push(new Platform(0, 220, 200, 50, 'stone'));
+                platforms.push(new Platform(240, 190, 120, 20, 'stone'));
+                platforms.push(new Platform(400, 160, 140, 20, 'stone'));
+                platforms.push(new Platform(580, 200, 180, 50, 'stone'));
+                platforms.push(new Platform(800, 170, 160, 20, 'stone'));
+                platforms.push(new Platform(1000, 210, 250, 50, 'stone'));
+
+                enemies.push(new Enemy(120, 200, 'crawler'));
+                enemies.push(new Enemy(280, 170, 'imp'));
+                enemies.push(new Enemy(450, 140, 'crawler'));
+                enemies.push(new Enemy(640, 180, 'imp'));
+                enemies.push(new Enemy(850, 150, 'crawler'));
+                enemies.push(new Enemy(1080, 190, 'imp'));
+
+                audio.startChiptune(1);
+            } else if (stageNum === 2) {
+                // STAGE 2: CRUMBLING ASCENT (COLLAPSING PLATFORMS & FALLING METEORS)
+                stageLabel.textContent = "STAGE 2: CRUMBLING ASCENT";
+                stageLabel.className = "text-amber-500 glow-orange";
+                lavaHeight = V_HEIGHT - 5;
+
+                startCheckpoint = new Checkpoint(30, 206);
+
+                platforms.push(new Platform(10, 230, 70, 40, 'obsidian'));
+                platforms.push(new Platform(110, 195, 50, 15, 'crumble'));
+                platforms.push(new Platform(190, 165, 50, 15, 'crumble'));
+                platforms.push(new Platform(270, 140, 60, 15, 'obsidian'));
+                platforms.push(new Platform(360, 115, 50, 15, 'crumble'));
+                platforms.push(new Platform(440, 95, 50, 15, 'crumble'));
+                platforms.push(new Platform(520, 80, 80, 40, 'obsidian'));
+
+                chalicePos = { x: 550, y: 40 };
+                enemies.push(new Enemy(280, 115, 'imp'));
+
+                audio.startChiptune(2);
+            } else if (stageNum === 3) {
+                // STAGE 3: THE FIRE FALLS (MOVING LIFTS & LAVA GEYSERS)
+                stageLabel.textContent = "STAGE 3: THE FIRE FALLS";
+                stageLabel.className = "text-red-500 glow-orange";
+                lavaHeight = V_HEIGHT - 10;
+
+                startCheckpoint = new Checkpoint(30, 206);
+
+                platforms.push(new Platform(10, 230, 60, 40, 'obsidian'));
+                // Horizontal Moving Lift
+                platforms.push(new Platform(110, 180, 45, 12, 'moving', { moveRangeX: 40, moveRangeY: 0, speed: 1.8 }));
+                // Vertical Moving Lift
+                platforms.push(new Platform(230, 150, 45, 12, 'moving', { moveRangeX: 0, moveRangeY: 35, speed: 2.0 }));
+                platforms.push(new Platform(330, 110, 50, 15, 'obsidian'));
+                // Diagonal Moving Ferry
+                platforms.push(new Platform(420, 100, 45, 12, 'moving', { moveRangeX: 30, moveRangeY: 20, speed: 1.5 }));
+                platforms.push(new Platform(530, 80, 80, 40, 'obsidian'));
+
+                lavaGeysers.push(new LavaGeyser(180, 260));
+                lavaGeysers.push(new LavaGeyser(380, 260));
+
+                chalicePos = { x: 560, y: 40 };
+                enemies.push(new Enemy(340, 85, 'imp'));
+
+                audio.startChiptune(2);
+            } else if (stageNum === 4) {
+                // STAGE 4: INFERNAL GAUNTLET (TIMED FIRE BARRIERS & SINKING FOOTHOLDS)
+                stageLabel.textContent = "STAGE 4: INFERNAL GAUNTLET";
+                stageLabel.className = "text-red-600 glow-red";
+                lavaHeight = V_HEIGHT - 15;
+
+                startCheckpoint = new Checkpoint(30, 206);
+
+                platforms.push(new Platform(10, 230, 50, 40, 'obsidian'));
+                platforms.push(new Platform(90, 190, 40, 12, 'sinking'));
+                platforms.push(new Platform(160, 160, 40, 12, 'sinking'));
+                platforms.push(new Platform(235, 135, 50, 15, 'obsidian'));
+                platforms.push(new Platform(310, 110, 40, 12, 'sinking'));
+                platforms.push(new Platform(380, 85, 40, 12, 'sinking'));
+                platforms.push(new Platform(455, 95, 40, 12, 'obsidian'));
+                platforms.push(new Platform(530, 75, 80, 40, 'obsidian'));
+
+                // Timed Fire Barriers blocking passages
+                fireBarriers.push(new FireBarrier(140, 130, 10, 50, 1.8));
+                fireBarriers.push(new FireBarrier(360, 55, 10, 50, 1.5));
+
+                chalicePos = { x: 560, y: 35 };
+                enemies.push(new Enemy(245, 110, 'imp'));
+
+                audio.startChiptune(2);
+            } else if (stageNum === 5) {
+                // STAGE 5: DEMON LORD KHAL'GORATH BOSS BATTLE
+                stageLabel.textContent = "STAGE 5: DEMON LORD";
+                stageLabel.className = "text-red-600 glow-red animate-pulse";
+                bossBarContainer.classList.remove('hidden');
+
+                startCheckpoint = new Checkpoint(20, 196);
+                lavaHeight = V_HEIGHT + 100;
+
+                platforms.push(new Platform(0, 220, 480, 50, 'obsidian'));
+                platforms.push(new Platform(80, 160, 80, 15, 'obsidian'));
+                platforms.push(new Platform(320, 160, 80, 15, 'obsidian'));
+
+                boss = new DemonBoss(360, 156);
+                enemiesSpawnedThisRun++;
+                audio.startChiptune(5);
+            } else if (stageNum === 7) {
+                // AREA OF PEACE: safe, calm rest area between stage 1 and stage 2
+                stageLabel.textContent = 'AREA OF PEACE - PORTAL TO THE SUMMIT ->';
+                stageLabel.className = 'text-green-300 glow-green';
+                lavaHeight = V_HEIGHT + 500;
+                startCheckpoint = null;
+                activeCheckpoint = { stage: 7, x: 30, y: PEACE_GROUND_Y - 24 };
+                platforms.push(new Platform(0, PEACE_GROUND_Y, V_WIDTH, V_HEIGHT - PEACE_GROUND_Y, 'peace'));
+                peaceNearNpc = false;
+                peaceNpcTimer = 0;
+                audio.startChiptune(7);
+                startPeaceIntro();
+            } else if (stageNum === 6) {
+                stageLabel.textContent = 'THE SUNLIT SUMMIT';
+                stageLabel.className = 'text-cyan-300 glow-cyan';
+                lavaHeight = MountainLevel.height + 100;
+                MountainLevel.build();
+                audio.startChiptune(6);
+            }
+
+            enemiesSpawnedThisRun += enemies.length;
+            player.reset(activeCheckpoint.x, activeCheckpoint.y);
+            player.fullHeal();
+        }
+
+        function startPostBossCutscene() {
+            cutscenePhase = 'CELEBRATE';
+            cutsceneTimer = 5.0;
+            stageBannerText.textContent = "BOSS DEFEATED!";
+            stageBannerSub.textContent = currentStage === 6 ? "THE SUMMIT IS SAFE! SECURING THE PEAK..." : "REALM SAVED! SECURING ARENA...";
+            stageBanner.classList.remove('translate-x-full');
+            audio.playVictory();
+        }
+
+        function handlePlayerDeath() {
+            tookDamageThisRun = true;
+            if (gameState === 'DYING') return;
+            gameState = 'DYING';
+            stageBannerText.textContent = "YOU DIED!";
+            stageBannerSub.textContent = currentStage === 5 
+                ? "RESPAWNING AT BOSS LEVEL WITH 3 FULL HEARTS!" 
+                : "RESPAWNING AT LEVEL START WITH 3 FULL HEARTS!";
+            stageBanner.classList.remove('translate-x-full');
+
+            setTimeout(() => {
+                stageBanner.classList.add('translate-x-full');
+                try { loadStage(currentStage); } catch (err) { reportGameError('respawning', err); }
+                gameState = 'PLAYING';
+                lastTime = performance.now();
+                requestAnimationFrame(gameLoop);
+            }, 1600);
+        }
+
+        function triggerStageTransition(nextStage) {
+            if (gameState === 'TRANSITION') return;
+            gameState = 'TRANSITION';
+            try { audio.playVictory(); } catch (err) { console.error(err); }
+            if (currentStage === 7) {
+                stageBannerText.textContent = "LEAVING THE AREA OF PEACE";
+                stageBannerSub.textContent = "THE SUNLIT SUMMIT AWAITS...";
+            } else {
+                stageBannerText.textContent = `STAGE ${currentStage} CLEARED!`;
+                stageBannerSub.textContent = "+1 HEART RESTORED!";
+            }
+            stageBanner.classList.remove('translate-x-full');
+
+            setTimeout(() => {
+                stageBanner.classList.add('translate-x-full');
+                try { loadStage(nextStage); } catch (err) { reportGameError('loading stage ' + nextStage, err); }
+                gameState = 'PLAYING';
+                lastTime = performance.now();
+                requestAnimationFrame(gameLoop);
+            }, 1800);
+        }
+
+        // Plays a list of lines one bubble at a time, then runs onDone.
+        function playDialogue(lines, onDone) {
+            dialogueLines = lines;
+            dialogueIdx = 0;
+            dialogueDone = onDone;
+            awaitingChoice = false;
+            dialogueChoices.classList.add('hidden');
+            cutsceneRestartBtn.classList.add('hidden');
+            dialogueNext.classList.remove('hidden');
+            dialogueText.textContent = `\u201C${lines[0]}\u201D`;
+        }
+
+        function showChoices(set) {
+            awaitingChoice = true;
+            choiceSet = set;
+            dialogueNext.classList.add('hidden');
+            dialogueChoices.classList.remove('hidden');
+        }
+
+        function startEndingDialogue() {
+            if (!isReplayRun) {
+                playDialogue(BOOFEMO_DIALOGUE, () => showChoices('first'));
+            } else if (tookDamageThisRun || enemiesKilledThisRun < enemiesSpawnedThisRun) {
+                playDialogue(["It's okay! You did your best!"], () => showChoices('failed'));
+            } else {
+                magmaTokens += 5;
+                updateMagmaHUD();
+                playDialogue([
+                    "WOW! You did it without taking any damage! Here are 5 Magma Tokens for your hard work!",
+                    "So...do you want more tokens to prove your might or shall we continue to the next stage?"
+                ], () => showChoices('success'));
+            }
+        }
+
+        const CHOICE_REPLIES = {
+            first:   { replay: "Great! Let's try this again now that we know each other!", continue: "Alright! We got this!" },
+            failed:  { replay: "Awesome! I'll be even stronger this time!", continue: "I understand! We can still perform INCREDIBLY for this next one!" },
+            success: { replay: "Haha! I admire your resilience! Let's go again", continue: "Nice! These tokens will prove useful for the next challenges!" }
+        };
+
+        function chooseOption(option) {
+            if (!awaitingChoice) return;
+            const reply = currentStage === 6 ? MountainLevel.replies[choiceSet][option] : [CHOICE_REPLIES[choiceSet][option]];
+            playDialogue(reply, option === 'replay' ? replayLevel : continueToNextStage);
+        }
+
+        function replayLevel() {
+            isReplayRun = true;
+            tookDamageThisRun = false;
+            enemiesKilledThisRun = 0;
+            enemiesSpawnedThisRun = 0;
+            cutsceneOverlay.classList.add('opacity-0');
+            const replayStage = currentStage === 6 ? 6 : 1;
+            loadStage(replayStage);
+            player.fullHeal();
+            gameState = 'PLAYING';
+            lastTime = performance.now();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function continueToNextStage() {
+            if (currentStage === 6) {
+                awaitingChoice = false;
+                dialogueNext.classList.add('hidden');
+                dialogueChoices.classList.remove('hidden');
+                choiceReplayBtn.textContent = '↻ REPLAY MOUNTAIN';
+                choiceContinueBtn.classList.add('hidden');
+                choiceReplayBtn.onclick = null;
+                showChoices(choiceSet);
+                dialogueText.textContent = 'NEXT STAGE COMING SOON...';
+                return;
+            }
+            isReplayRun = false;
+            tookDamageThisRun = false;
+            enemiesKilledThisRun = 0;
+            enemiesSpawnedThisRun = 0;
+            dialogueLines = [];
+            dialogueDone = null;
+            cutsceneOverlay.classList.add('opacity-0');
+            loadStage(7);
+            gameState = 'PLAYING';
+            lastTime = performance.now();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function updateMagmaHUD() {
+            magmaCounter.classList.toggle('hidden', magmaTokens + frostTokens <= 0);
+            document.getElementById('tokenLabel').textContent = unifiedTokens ? 'TOKENS:' : '🔥 MAGMA TOKENS:';
+            magmaText.textContent = unifiedTokens ? magmaTokens + frostTokens : magmaTokens;
+            magmaCounter.setAttribute('aria-label', unifiedTokens ? 'Tokens: view inventory' : 'Magma Tokens');
+            document.getElementById('magmaInventory').textContent = magmaTokens;
+            document.getElementById('frostInventory').textContent = frostTokens;
+        }
+
+        function openTokenModal(mode) {
+            tokenTipIndex = 0;
+            tokenModalPaused = gameState === 'PLAYING';
+            if (tokenModalPaused) togglePause();
+            tokenModalMode = mode;
+            document.getElementById('tokenModalTitle').textContent = mode === 'tip' ? 'TOKENS UNLOCKED' : 'YOUR TOKENS';
+            document.getElementById('tokenTipText').textContent = mode === 'tip' ? TOKEN_TIP[0] : '';
+            document.getElementById('tokenBreakdown').classList.toggle('hidden', mode === 'tip');
+            document.getElementById('tokenModalNext').textContent = mode === 'tip' ? 'NEXT ▶' : 'CLOSE';
+            document.getElementById('tokenModal').classList.remove('hidden');
+            document.getElementById('tokenModalNext').focus();
+        }
+        magmaCounter.addEventListener('click', () => { if (unifiedTokens) openTokenModal('inventory'); });
+        document.getElementById('tokenModalNext').addEventListener('click', () => {
+            if (tokenModalMode === 'tip' && ++tokenTipIndex < TOKEN_TIP.length) {
+                document.getElementById('tokenTipText').textContent = TOKEN_TIP[tokenTipIndex];
+                document.getElementById('tokenModalNext').textContent = tokenTipIndex === TOKEN_TIP.length - 1 ? 'GOT IT' : 'NEXT ▶';
+                return;
+            }
+            document.getElementById('tokenModal').classList.add('hidden');
+            tokenModalMode = null;
+            if (tokenModalPaused && gameState === 'PAUSED') togglePause();
+            tokenModalPaused = false;
+            magmaCounter.focus();
+        });
+
+        function advanceDialogue() {
+            if (tokenModalMode) return;
+            if (cutscenePhase !== 'DIALOGUE' || gameState !== 'VICTORY' || awaitingChoice) return;
+            if (!dialogueLines.length) return;
+            dialogueIdx++;
+            if (dialogueIdx >= dialogueLines.length) {
+                const done = dialogueDone;
+                dialogueDone = null;
+                dialogueIdx = dialogueLines.length - 1;
+                if (done) done();
+                return;
+            }
+            dialogueText.textContent = `\u201C${dialogueLines[dialogueIdx]}\u201D`;
+        }
+
+        let pausedFrom = 'PLAYING';
+
+        function togglePause() {
+            if (tokenModalMode) return;
+            if (gameState === 'PLAYING') {
+                pausedFrom = 'PLAYING';
+                gameState = 'PAUSED';
+                pauseOverlay.classList.remove('hidden');
+                audio.stopChiptune();
+            } else if (gameState === 'VICTORY' && cutscenePhase === 'DIALOGUE') {
+                pausedFrom = 'VICTORY';
+                gameState = 'PAUSED';
+                pauseOverlay.classList.remove('hidden');
+            } else if (gameState === 'PAUSED') {
+                pauseOverlay.classList.add('hidden');
+                gameState = pausedFrom;
+                if (gameState === 'PLAYING') {
+                    audio.startChiptune(currentStage);
+                    lastTime = performance.now();
+                    requestAnimationFrame(gameLoop);
+                }
+            }
+        }
+
+        // Keeps the game running if one frame throws, instead of silently freezing.
+        let loopErrorCount = 0;
+        function reportGameError(where, err) {
+            console.error('[Inferno] ' + where + ':', err);
+            let box = document.getElementById('gameErrorBox');
+            if (!box) {
+                box = document.createElement('div');
+                box.id = 'gameErrorBox';
+                box.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:9999;background:#300;color:#fbb;font:10px monospace;padding:4px 8px;pointer-events:none;';
+                document.body.appendChild(box);
+            }
+            box.textContent = 'Game error (' + where + ', stage ' + currentStage + '): ' + (err && err.message ? err.message : err);
+        }
+        function gameLoop(timestamp) {
+            try {
+                gameLoopInner(timestamp);
+                loopErrorCount = 0;
+            } catch (err) {
+                reportGameError('frame', err);
+                if (++loopErrorCount < 120 && gameState === 'PLAYING') requestAnimationFrame(gameLoop);
+            }
+        }
+
+        function gameLoopInner(timestamp) {
+            if (gameState === 'PAUSED' || gameState !== 'PLAYING') return;
+
+            const dt = Math.max(0, Math.min((timestamp - lastTime) / 1000, 0.08)); // never negative (first frame after a stage change)
+            lastTime = timestamp;
+            gameTime += dt;
+
+            if (cutscenePhase === 'CELEBRATE') {
+                cutsceneTimer -= dt;
+                
+                if (cutsceneTimer <= 0) {
+                    cutscenePhase = 'SHOW_BOOFEMO';
+                    cutsceneTimer = currentStage === 6 ? 5.0 : 3.0;   // Boofemo celebrates for 5 seconds after the summit boss
+                    stageBanner.classList.add('translate-x-full');
+                    // Focus camera back on center platform of boss arena
+                    cameraX = 0;
+                    cameraY = 0;
+                }
+            } else if (cutscenePhase === 'SHOW_BOOFEMO') {
+                cutsceneTimer -= dt;
+                // Add magical sparkles around Boofemo standing in the arena
+                if (Math.random() < 0.6) {
+                    // Sparkles rise from around/above him so they never cover his face
+                    particles.push(new Particle(boofemoPos.x + (Math.random() - 0.5) * 70, boofemoPos.y - 36 - Math.random() * 14, '#ff69b4'));
+                    particles.push(new Particle(boofemoPos.x + (Math.random() - 0.5) * 70, boofemoPos.y - 36 - Math.random() * 14, '#ffff00'));
+                }
+
+                if (cutsceneTimer <= 0) {
+                    cutscenePhase = 'DIALOGUE';
+                    gameState = 'VICTORY';
+                    audio.stopChiptune();
+
+                    // Wipe the screen: hide every HUD widget and the controls bar (Pause button stays).
+                    document.querySelectorAll('[data-cs-hide]').forEach(el => { el.style.display = 'none'; });
+
+                    cutsceneRestartBtn.classList.add('hidden');
+                    if (currentStage === 6) MountainLevel.endingDialogue();
+                    else startEndingDialogue();
+                    cutsceneOverlay.classList.remove('hidden');
+                    requestAnimationFrame(() => cutsceneOverlay.classList.remove('opacity-0'));
+                    return;
+                }
+            }
+
+            if (comboCount > 0) {
+                comboTimer -= dt;
+                if (comboTimer <= 0) {
+                    comboCount = 0;
+                    updateComboHUD();
+                }
+            }
+
+            // Update Platforms
+            platforms.forEach(p => p.update(dt));
+
+            // Stage 2: Falling volcanic meteors hazard
+            if (currentStage === 2) {
+                meteorTimer += dt;
+                if (meteorTimer > 1.8) {
+                    meteorTimer = 0;
+                    projectiles.push(new Projectile(cameraX + Math.random() * V_WIDTH, cameraY - 10, (Math.random() - 0.5) * 30, 110, true));
+                }
+            }
+
+            // Update Hazards
+            fireBarriers.forEach(fb => fb.update(dt, player));
+            lavaGeysers.forEach(lg => lg.update(dt, player));
+
+            if (currentStage === 7) {
+                // Shopkeeper: SPACE talks to him instead of jumping while the player is next to him.
+                peaceNearNpc = Math.abs(player.x + player.width / 2 - PEACE_NPC.x) <= 48;
+                if (peaceFrozen) {
+                    // Frozen during Boofemo's dialogue and the shop conversation: ignore every input.
+                    Object.keys(keys).forEach(k => { keys[k] = false; });
+                    player.vx = 0;
+                } else if (peaceNearNpc) {
+                    keys['Space'] = false;
+                }
+                // No sword in the area of peace: attacking is disabled.
+                keys['KeyZ'] = false; keys['KeyX'] = false; keys['MouseLeft'] = false;
+                if (peaceNpcTimer > 0) peaceNpcTimer -= dt;
+            }
+            player.update(dt, platforms);
+
+            if (currentStage === 6) {
+                cameraX += (Math.max(0, Math.min(240, player.x - V_WIDTH / 2)) - cameraX) * 0.1;
+                cameraY += (Math.max(0, Math.min(MountainLevel.height - V_HEIGHT, player.y - V_HEIGHT * 0.6)) - cameraY) * 0.12;
+                MountainLevel.update();
+                if (gameState !== 'PLAYING') return;
+            } else if (currentStage === 7) {
+                cameraX = 0;
+                cameraY = 0;
+            } else if (cutscenePhase !== 'SHOW_BOOFEMO') {
+                cameraX += (player.x - V_WIDTH / 3 - cameraX) * 0.1;
+                cameraY += (player.y - V_HEIGHT / 2 - cameraY) * 0.1;
+                cameraY = Math.max(0, cameraY);
+            } else {
+                // Focus camera directly on Boofemo standing in center of arena
+                cameraX += (boofemoPos.x - V_WIDTH / 2 - cameraX) * 0.1;
+                cameraY += (boofemoPos.y - V_HEIGHT / 2 - cameraY) * 0.1;
+            }
+
+            if (currentStage !== 6 && player.y > V_HEIGHT + 30) {
+                audio.playLava();
+                handlePlayerDeath();
+                return;
+            }
+
+            if ([2, 3, 4].includes(currentStage)) {
+                const speedMult = currentStage === 2 ? 3.5 : (currentStage === 3 ? 5.0 : 6.5);
+                lavaHeight -= speedMult * dt;
+                if (player.y + player.height >= lavaHeight) {
+                    audio.playLava();
+                    handlePlayerDeath();
+                    return;
+                }
+            }
+
+            if (currentStage !== 6 && currentStage !== 7 && Math.random() < 0.3) {
+                particles.push(new Particle(cameraX + Math.random() * V_WIDTH, cameraY + V_HEIGHT, [2, 3, 4, 5].includes(currentStage) ? '#ff4400' : '#444466'));
+            }
+
+            projectiles.forEach(p => p.update(dt, player, platforms));
+            projectiles = projectiles.filter(p => p.active);
+
+            enemies.forEach(enemy => {
+                if (enemy.dead) return;
+                if (cutscenePhase !== 'NONE') return;   // enemies freeze while the victory celebration plays
+                enemy.update(dt, player, projectiles);
+
+                if (player.isAttacking && enemy.lastHitAttackId !== player.attackId && !(enemy.invulnerableTimer > 0)) {
+                    const atkBox = {
+                        x: player.facing === 1 ? player.x + player.width : player.x - 22,
+                        y: player.y - 4,
+                        width: 24,
+                        height: player.height + 8
+                    };
+
+                    if (
+                        atkBox.x < enemy.x + enemy.width &&
+                        atkBox.x + atkBox.width > enemy.x &&
+                        atkBox.y < enemy.y + enemy.height &&
+                        atkBox.y + atkBox.height > enemy.y
+                    ) {
+                        enemy.lastHitAttackId = player.attackId;
+                        if (enemy.type === 'frostBoss') enemy.invulnerableTimer = 0.3;
+                        enemy.hp -= swordDamage;
+                        incrementCombo();
+                        audio.playHit();
+                        for (let i = 0; i < 8; i++) particles.push(new Particle(enemy.x + 10, enemy.y + 10, '#ff0033'));
+
+                        if (enemy.hp <= 0) {
+                            enemy.dead = true;
+                            enemiesKilledThisRun++;
+                            score += enemy.type === 'imp' ? 150 : 100;
+                            if (scoreText) scoreText.textContent = score;
+                        }
+                    }
+                }
+
+                if (!enemy.dead && player.checkCollision(player, enemy)) {
+                    player.takeDamage(Math.sign(player.x - enemy.x));
+                }
+            });
+
+            if (boss && !boss.dead) {
+                boss.update(dt, player, projectiles, platforms);
+
+                if (player.isAttacking && boss.lastHitAttackId !== player.attackId && boss.invulnerableTimer <= 0) {
+                    const atkBox = {
+                        x: player.facing === 1 ? player.x + player.width : player.x - 22,
+                        y: player.y - 4,
+                        width: 24,
+                        height: player.height + 8
+                    };
+
+                    if (
+                        atkBox.x < boss.x + boss.width &&
+                        atkBox.x + atkBox.width > boss.x &&
+                        atkBox.y < boss.y + boss.height &&
+                        atkBox.y + atkBox.height > boss.y
+                    ) {
+                        boss.lastHitAttackId = player.attackId;
+                        boss.invulnerableTimer = 0.35;
+                        boss.hp = Math.max(0, boss.hp - swordDamage);
+                        boss.updateHUD();
+                        incrementCombo();
+                        audio.playHit();
+                        for (let i = 0; i < 12; i++) particles.push(new Particle(boss.x + 32, boss.y + 32, '#ffff00'));
+
+                        if (boss.hp <= 0) {
+                            boss.dead = true;
+                            enemiesKilledThisRun++;
+                            score += 1000;
+                            if (scoreText) scoreText.textContent = score;
+                            startPostBossCutscene();
+                        }
+                    }
+                }
+            }
+
+            if (currentStage === 1) {
+                const remainingDemons = enemies.filter(e => !e.dead).length;
+                const portalActive = remainingDemons === 0;
+                if (portalActive && player.x >= 1170) {
+                    triggerStageTransition(2);
+                    return;
+                }
+            }
+
+            if (currentStage === 7) {
+                // Free-roam area: keep the player on the single screen, exit via the portal on the right.
+                player.x = Math.max(0, Math.min(V_WIDTH - player.width, player.x));
+                if (player.x + player.width / 2 >= PEACE_PORTAL.x + 4) {
+                    if (peaceStep === 'FREE') {
+                        triggerStageTransition(6);
+                        return;
+                    }
+                    player.x = PEACE_PORTAL.x + 4 - player.width / 2 - 1;   // portal stays closed until the shop visit is done
+                }
+            }
+
+            if ([2, 3, 4].includes(currentStage)) {
+                const distToChalice = Math.hypot((player.x + 9) - (chalicePos.x + 12), (player.y + 12) - (chalicePos.y + 16));
+                if (distToChalice < 24) {
+                    triggerStageTransition(currentStage + 1);
+                    return;
+                }
+            }
+
+            particles.forEach(p => p.update(dt));
+            particles = particles.filter(p => p.life > 0);
+
+            // RENDER CANVAS
+            ctx.clearRect(0, 0, V_WIDTH, V_HEIGHT);
+
+            ctx.save();
+            ctx.translate(-Math.floor(cameraX), -Math.floor(cameraY));
+
+            if (currentStage === 6) {
+                MountainLevel.drawBackground(ctx, gameTime);
+            } else if (currentStage === 7) {
+                drawPeaceScene(ctx, gameTime);
+            } else {
+            if (currentStage === 1) ctx.fillStyle = '#0f0c1b';
+            else if (currentStage === 5) ctx.fillStyle = '#1c0303';
+            else ctx.fillStyle = '#220505';
+            ctx.fillRect(cameraX, cameraY, V_WIDTH, V_HEIGHT);
+            }
+
+            platforms.forEach(p => p.draw(ctx));
+            fireBarriers.forEach(fb => fb.draw(ctx));
+            lavaGeysers.forEach(lg => lg.draw(ctx));
+
+            if (startCheckpoint) startCheckpoint.draw(ctx, gameTime * 10);
+
+            if (currentStage === 1) {
+                const remainingDemons = enemies.filter(e => !e.dead).length;
+                const portalActive = remainingDemons === 0;
+
+                Sprites.drawPortal(ctx, 1180, 170, gameTime * 10, portalActive);
+
+                if (remainingDemons > 0) {
+                    stageLabel.textContent = `STAGE 1: DEMONS ${remainingDemons}/6`;
+                    stageLabel.className = "text-amber-400 glow-orange";
+                } else {
+                    stageLabel.textContent = "PORTAL OPEN! ENTER AT X:1180";
+                    stageLabel.className = "text-green-400 glow-green animate-pulse";
+                }
+            }
+
+            if ([2, 3, 4].includes(currentStage)) {
+                Sprites.drawChalice(ctx, chalicePos.x, chalicePos.y, gameTime * 10);
+                ctx.fillStyle = '#ff2200';
+                ctx.fillRect(cameraX, lavaHeight, V_WIDTH, V_HEIGHT);
+                ctx.fillStyle = '#ffaa00';
+                ctx.fillRect(cameraX, lavaHeight, V_WIDTH, 2);
+            }
+
+            if (currentStage === 7) {
+                Sprites.drawPortal(ctx, PEACE_PORTAL.x, PEACE_PORTAL.y, gameTime * 10, true);
+                drawPeaceUI(ctx);
+            }
+
+            if (currentStage === 6) MountainLevel.drawDetails(ctx, gameTime);
+            enemies.forEach(e => e.draw(ctx));
+            if (boss && !boss.dead) boss.draw(ctx);
+
+            if (cutscenePhase === 'SHOW_BOOFEMO') {
+                const hop = Math.round(Math.abs(Math.sin(gameTime * 5)) * 5);   // little celebration hops
+                if (boofemoLoaded) {
+                    ctx.drawImage(boofemoSmall, Math.round(boofemoPos.x - 22), Math.round(boofemoPos.y - 31) - hop);
+                } else {
+                    Sprites.drawBoofemoPixel(ctx, boofemoPos.x, boofemoPos.y - hop, gameTime * 10);
+                }
+            }
+
+            projectiles.forEach(p => p.draw(ctx));
+            particles.forEach(p => p.draw(ctx));
+
+            player.draw(ctx);
+
+            ctx.restore();
+
+            // Update previousKeys state at end of frame
+            previousKeys = { ...keys };
+
+            if (gameState === 'PLAYING') {
+                requestAnimationFrame(gameLoop);
+            }
+        }
+
+        function triggerVictory() {
+            gameState = 'VICTORY';
+            audio.stopChiptune();
+            audio.playVictory();
+
+            menuTitle.innerHTML = "VICTORY!<br><span class='text-yellow-400 text-sm sm:text-xl'>DEMON LORD DEFEATED</span>";
+            menuTitle.className = "text-xl sm:text-3xl text-yellow-400 glow-orange mb-3";
+            menuSubtitle.textContent = "You conquered all infernal parkour stages and slayed Khal'gorath!";
+
+            finalScore.textContent = score;
+            finalTime.textContent = `${Math.floor(gameTime)}s`;
+            statsSummary.classList.remove('hidden');
+
+            startBtn.textContent = "PLAY AGAIN";
+            menuOverlay.classList.remove('hidden');
+        }
+
+        function startGame() {
+            audio.init();
+            isReplayRun = false;
+            tookDamageThisRun = false;
+            enemiesKilledThisRun = 0;
+            enemiesSpawnedThisRun = 0;
+            swordDamage = 20;
+            peaceGiftGiven = false;
+            peaceUpgraded = false;
+            { const lbl = document.getElementById('atkDmgLabel'); if (lbl) lbl.textContent = '\u2694\uFE0F ATTACK (20 DMG):'; }
+            score = 0;
+            gameTime = 0;
+            comboCount = 0;
+            comboTimer = 0;
+            updateComboHUD();
+            if (scoreText) scoreText.textContent = "0";
+            menuOverlay.classList.add('hidden');
+            statsSummary.classList.add('hidden');
+            cutsceneOverlay.classList.add('opacity-0');
+            cutsceneOverlay.classList.add('hidden');
+
+            loadStage(1);
+            gameState = 'PLAYING';
+            lastTime = performance.now();
+            requestAnimationFrame(gameLoop);
+        }
+
+        window.addEventListener('keydown', e => {
+            if (tokenModalMode) return;
+            keys[e.code] = true;
+            if (['Space', 'ArrowUp', 'ArrowDown'].includes(e.code)) e.preventDefault();
+
+            if ((e.code === 'KeyP' || e.code === 'Escape') && (gameState === 'PLAYING' || gameState === 'PAUSED' || gameState === 'VICTORY')) {
+                togglePause();
+            }
+            if ((e.code === 'Space' || e.code === 'Enter') && gameState === 'VICTORY' && cutscenePhase === 'DIALOGUE' && !e.repeat) {
+                advanceDialogue();
+            }
+        });
+        window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+        canvas.addEventListener('mousedown', e => {
+            if (e.button === 0) keys['MouseLeft'] = true;
+        });
+        window.addEventListener('mouseup', e => {
+            if (e.button === 0) keys['MouseLeft'] = false;
+        });
+
+        function bindTouch(id, code) {
+            const btn = document.getElementById(id);
+            btn.addEventListener('touchstart', (e) => { 
+                e.preventDefault(); 
+                keys[code] = true; 
+            });
+            btn.addEventListener('touchend', (e) => { e.preventDefault(); keys[code] = false; });
+        }
+        bindTouch('tLeft', 'ArrowLeft');
+        bindTouch('tRight', 'ArrowRight');
+        bindTouch('tJump', 'Space');
+        bindTouch('tAtk', 'KeyZ');
+        bindTouch('tDash', 'ShiftLeft');
+        bindTouch('tShield', 'KeyJ');
+        bindTouch('tHeal', 'KeyH');
+
+
+        window.addEventListener('error', e => reportGameError('uncaught', e.error || e.message));
+        window.addEventListener('unhandledrejection', e => reportGameError('promise', e.reason));
+
+        // ---- Front screens: title -> New Game / Load Game -> slot select ----
+        const frontOverlay = document.getElementById('frontOverlay');
+        const frontScreens = { title: 'frontTitle', menu: 'frontMenu', slots: 'frontSlots', message: 'frontMessage' };
+        let frontScreen = 'title';
+        let frontMode = null;
+        let frontBusy = false;
+        let currentSlot = null;
+
+        function showFrontScreen(name) {
+            frontScreen = name;
+            Object.entries(frontScreens).forEach(([key, id]) => {
+                document.getElementById(id).classList.toggle('active', key === name);
+            });
+        }
+        function frontContinue() {
+            if (frontScreen !== 'title') return;
+            showFrontScreen('menu');
+        }
+        window.addEventListener('keydown', e => {
+            if (currentStage !== 7 || gameState !== 'PLAYING' || e.repeat) return;
+            if (e.code === 'Space' || e.code === 'Enter') peaceInteract();
+            else if (e.code === 'KeyX') buyPeaceUpgrade();
+        });
+        window.addEventListener('keydown', e => { if (frontScreen === 'title' && !frontOverlay.classList.contains('hidden') && !e.repeat) frontContinue(); }, true);
+        frontOverlay.addEventListener('pointerdown', frontContinue);
+
+        const slotGrid = document.getElementById('slotGrid');
+        for (let i = 1; i <= 10; i++) {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'slot-btn';
+            b.innerHTML = 'SLOT<b>' + i + '</b>';
+            b.addEventListener('click', () => chooseSlot(i));
+            slotGrid.appendChild(b);
+        }
+        function chooseSlot(n) {
+            if (frontBusy) return;
+            const text = document.getElementById('frontMessageText');
+            const back = document.getElementById('frontBackBtn');
+            if (frontMode === 'load') {
+                text.textContent = 'Error: You have no saved slots already. Please select New Game to create a slot.';
+                text.classList.add('error');
+                back.classList.remove('hidden');
+                showFrontScreen('message');
+                return;
+            }
+            frontBusy = true;
+            currentSlot = n;
+            text.textContent = 'You are about to start the game in Slot ' + n;
+            text.classList.remove('error');
+            back.classList.add('hidden');
+            showFrontScreen('message');
+            setTimeout(() => {
+                frontOverlay.classList.add('hidden');
+                frontBusy = false;
+            }, 2200);
+        }
+        document.getElementById('newGameBtn').addEventListener('click', () => { frontMode = 'new'; showFrontScreen('slots'); });
+        document.getElementById('loadGameBtn').addEventListener('click', () => { frontMode = 'load'; showFrontScreen('slots'); });
+        document.getElementById('frontBackBtn').addEventListener('click', () => showFrontScreen('menu'));
+
+        // Mouse/touch support for the area of peace story
+        document.getElementById('peaceDialogue').addEventListener('click', () => { if (gameState === 'PLAYING') advancePeacePanel(); });
+        document.getElementById('peaceBuyBtn').addEventListener('click', buyPeaceUpgrade);
+        document.getElementById('gameCanvas').addEventListener('pointerdown', () => {
+            if (currentStage === 7 && gameState === 'PLAYING' && peaceBubbleLines) advanceShopBubble();
+        });
+        startBtn.addEventListener('click', startGame);
+
+        pauseBtn.addEventListener('click', togglePause);
+        resumeBtn.addEventListener('click', togglePause);
+        restartBtn.addEventListener('click', () => {
+            pauseOverlay.classList.add('hidden');
+            loadStage(currentStage);
+            gameState = 'PLAYING';
+            lastTime = performance.now();
+            requestAnimationFrame(gameLoop);
+        });
+
+        cutsceneRestartBtn.addEventListener('click', (e) => { e.stopPropagation(); startGame(); });
+        choiceReplayBtn.addEventListener('click', (e) => { e.stopPropagation(); chooseOption('replay'); });
+        choiceContinueBtn.addEventListener('click', (e) => { e.stopPropagation(); chooseOption('continue'); });
+        cutsceneOverlay.addEventListener('click', advanceDialogue);
+
+        muteBtn.addEventListener('click', () => {
+            audio.muted = !audio.muted;
+            muteBtn.textContent = audio.muted ? "🔇 MUTED" : "🔊 MUSIC";
+        });
+    </script>
+    <script>
+window.__MOUNTAIN_SCENE__ = {"background": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAYAAABw4pVUAAAD6ElEQVR42u2cMXLqMBCGJY1rOjgCuYkvkZ50rugzvNoVXejfJXyT5AikywWc4j2DMcbY1mp3Jf87w0yYeQFHn/5/tVrp2Y/Pc20YY/d3c32zN2lGef3x9Hqe9KvOIPgmoDYg3Oqwq+uLNfa3f98UKJbLsrhgdAe/rmtjrb2+/5GzL3P4N9Snr+9lWVZd15dX+30fMBa1NPFun/7zLKgqtuv7B9nLgmqrhRVK2YIykOid2GxhsKuHUFZGBkqIpH6Z9YrtigqeRCSTQ6YMsFg+UQHk3apTh+bI2L5pr0Md3QRvV/xL4a7tt5fB0VtWA2OOOjRaVxI5xMeqtEHJUlBHbEFaqQ99WCxWpXkx4GJWRgqrqiCWxVkspgyDDMiQje1QbyyzUgcQRORASgz2qBzJ0TG8dAsJtk/sypg8z4M8Z1VV4bZR/k/IZ4ceorKsWAtBvTmEwLZCqaP5bGnoSOqME3HMGS0WIFMPiy3ZGp3UbNEajSWSQSm1A4lg1pJDmeASbEBuHqj0G6hYoSSjEClP94ZSKgfioxJOdVArZcqixkEdgSbDTFtmBzJHJVLqkJgcIgoZC0XTVsmkSeFxYUfskMPp9XzddCzN3cZjA+PRQBRFMfq7jsdjNEWpnlMnLShjYUgM9ODButJ/h8Jy3zHsi+4NI/tHJwxjnmzR91zO6XWHgZb3oELGHF6gOBZ0Y18xWNCzxchheI4PHSXN5kAImejfXjYkeUMsDtMNZ7ddX6BkvjDaH8YRGhL0o9wwdyza445+CFUeJHIWJ21VsamjsdWghaEvjN12HQVQsW2UKUCWMpCxBHKIMtsCEGW2FfywtYZ4VL/4LhLeXjbm4/OsD4jmVcujgS+K4mmhOQQsz3NTVRX5s9qa4Gy/j0IaGFp6Hl1VDUGpqupGIRRFsjt9fZvmxa0KrTDG2FmfOijGMJNUh0YQU6BQ5487IFwqCZ0zUIckqA4UhigOAUSjwgEElgXbApCIbAtAlKkEQJBDYFsAEpFtAYgylQAIcghiKKL7Pxf7Gkftzp/E2S3KzmEWI4hu+7WBEMXZ3xQsq6uKtgq6ipCCQtWsYr8fMqdtWxSF+ltQ3f56VApBc0oJELRuFQHRfMJkcUAAQ6FCfGDEdK1ZPRDkDUVAYFUKFQIYSoDAqhQqBOqIpFJHAAiAIBQBQUKfH8EaVBoTOlWvJOTOQba0GRhyMClu5S4mh4RucjWO4GvXWYhZMsau5tiH9k1GiqvSWar2IfldPtblqB9k6eG7mHFSD5R6j2Pu5ERhqEwlTnpGIAIqBLu7/pPUUXwp1EFXlziqL4c6aBwDST3lHIIAEABBAMii4hdwr4dWo5w/+AAAAABJRU5ErkJggg==", "parts": [{"x": 0, "y": 6, "w": 9, "h": 11, "kind": "wind", "url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAkAAAALCAYAAACtWacbAAAAQUlEQVR42mNkgIHt7/8zoANPQUYGBgYGJgYiABMu3cimYzcJWSFR1m1//58JmyC6aUQ5nBGfNSSahC0Q0XxKlEkAVycRuVKnZhwAAAAASUVORK5CYII="}, {"x": 1, "y": 21, "w": 9, "h": 9, "kind": "wind", "url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAkAAAAJCAYAAADgkQYQAAAAO0lEQVR42mNkgIHt7/8zoANPQUYGBgYGJgZ8AKqRCZduZIXYTUJTyEiedVg8wohPEqEIm9fR3MZCjMMBDssUW9/PnpgAAAAASUVORK5CYII="}, {"x": 1, "y": 56, "w": 20, "h": 19, "kind": "wind", "url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAAAATCAYAAACQjC21AAAAe0lEQVR42rVUQQ7AIAijZB/gWbzYZ/kEd9mBLGhgMG5iLC0UQZEYc23vVGCPKIE5wEiBWTZeIRVcmepu7gXMlIkx15F1GjDQFv76cNcCLoE5ee4aRtyHSTshbNzwplQBf5Hc6kMVWNncotMwZmoOtK5e6LdJuqBP8jOYG5s5OBLU0YqpAAAAAElFTkSuQmCC"}, {"x": 86, "y": 59, "w": 10, "h": 11, "kind": "wind", "url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAALCAYAAABGbhwYAAAATklEQVR42o1QwREAIAgSN3CsJnasRqhP3XGWFk/kQIBEeB8H1wx4ihY0O0gz3IXstkUkzh2/owNQXukdFe/j2jZwqCbhchpnyGZCGUkmEwuaGrcgzFd0AAAAAElFTkSuQmCC"}, {"x": 16, "y": 0, "w": 8, "h": 4, "kind": "tendrils", "url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAECAYAAACzzX7wAAAAIklEQVR42mP8/4nhPwMaYORjYISxmZA52ACKJDbTmBgIAAAkAAYHDPelpwAAAABJRU5ErkJggg=="}, {"x": 93, "y": 0, "w": 7, "h": 10, "kind": "tendrils", "url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAcAAAAKCAYAAAB4zEQNAAAASklEQVR42o2PSwqAMBDFkuJW73/OeoDnQkoHf5jVQOCFESCd8EB7EwDLONywinRikgCoVgHQrlM1469mZfSnXM+B2p7N3fuffHAA18EX3JHrBKAAAAAASUVORK5CYII="}, {"x": 13, "y": 4, "w": 10, "h": 12, "kind": "tendrils", "url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAMCAYAAABbayygAAAAU0lEQVR42o2QOw4AIAhDqXH1/vfUA9RBB8T6MWEB+h7RWI2sRnu8HBskZQiSVvZWkp6GUYvap8NwVaubfGCCtPr7RkE/LwbqmzipGQB+PvxOdPoORT0g48+SWWkAAAAASUVORK5CYII="}, {"x": 94, "y": 14, "w": 6, "h": 4, "kind": "tendrils", "url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAYAAAAECAYAAACtBE5DAAAAKElEQVR42mNkQAP/PzH8Z2BgYGBEF4ABRnQBBgYGBkY+BkYWdAEYGwA+CAj4kLhJKAAAAABJRU5ErkJggg=="}, {"x": 11, "y": 20, "w": 11, "h": 3, "kind": "tendrils", "url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAsAAAADCAYAAABF//VLAAAAKklEQVR42mNkYGBg+P+J4T8DEYCJWIUMDAwMLDAGIx8DI7JGRj4GRnTFANt1CPhV+wKEAAAAAElFTkSuQmCC"}, {"x": 10, "y": 28, "w": 15, "h": 5, "kind": "tendrils", "url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA8AAAAFCAYAAACaTbYsAAAAN0lEQVR42o2MsQ0AIAzDHA7g/zv7QFgRKlEz2nLEYC7c8eXCP5lCAN1SG6Xw9UrPKQRYHZyEAAdN9xTox99NYQAAAABJRU5ErkJggg=="}, {"x": 92, "y": 30, "w": 8, "h": 4, "kind": "tendrils", "url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAECAYAAACzzX7wAAAAI0lEQVR42mP8/4nhPwMaYORjYISzsSlAUYzMwaaYCZfRMD4AOuwJBibR+3YAAAAASUVORK5CYII="}, {"x": 19, "y": 36, "w": 11, "h": 12, "kind": "tendrils", "url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAsAAAAMCAYAAAC0qUeeAAAATUlEQVR42pXPwQ4AEAwD0Fac/f938gF1EIkwGz2/rB3xEFUIABI+8oX5Uu/iHV2xBVmGy5JE0myYKHxwhwe+bZ3JaAyRO8OaMC4HYE0HsiMW/3Q2enoAAAAASUVORK5CYII="}, {"x": 84, "y": 39, "w": 13, "h": 14, "kind": "tendrils", "url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA0AAAAOCAYAAAD0f5bSAAAAWklEQVR42tWSQQ6AQAgDO3vX/79TH1BPJquW3ehNjkDpBMCbrBRLTktSKys7ZQnbHjYHxxaxBmhjvJ+IwhZr0ac73dzoohQBF67+c5iZpDeb4rE+B/Nm1afrARLoGQF1gqM6AAAAAElFTkSuQmCC"}]};
+// Browser-only mountain stage; the existing game owns movement, combat, and timing.
+const MountainLevel = {
+    size: 720,
+    height: 2880,
+    introShown: false,
+    palette: {
+        sky: '#99d9ea', earth: '#69452e', earthDark: '#3f2b22', edge: '#bb8750',
+        snow: '#fff6d9', rock: '#7d8891', rockDark: '#38434d', eye: '#aeefff',
+        feather: '#d7e3e8', wing: '#506977', sun: '#fff2a1', shadow: '#233f55'
+    },
+    art: null,
+    reducedMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+    async prepare() {
+        const manifest = window.__MOUNTAIN_SCENE__;
+        const image = async url => {
+            const img = new Image();
+            img.src = url;
+            await img.decode();
+            return img;
+        };
+        this.art = {
+            background: await image(manifest.background),
+            parts: await Promise.all(manifest.parts.map(async part => ({ ...part, image: await image(part.url) })))
+        };
+    },
+    build() {
+        this.completed = false;
+        this.checkpointIndex = 0;
+        this.startY = this.height - 48;
+        for (let i = 0; i < 58; i++) {
+            const y = this.height - 24 - i * 46;
+            const x = i === 0 ? 220 : 280 + (i % 2 ? 66 : -34) + Math.round(Math.sin(i * 0.55) * 24);
+            platforms.push(new Platform(x, y, i === 0 ? 200 : (i % 12 === 0 ? 120 : 94), 12, 'mountain'));
+            if (i > 1 && i % 4 === 0) enemies.push(new MountainEnemy(x + 40, y - 20, 'golem', platforms[i]));
+            if (i > 3 && i % 7 === 0) enemies.push(new MountainEnemy(x + 110, y - 55, 'hawk'));
+        }
+        this.summit = new Platform(200, 188, 320, 16, 'mountain');
+        platforms.push(this.summit);
+        this.summitBoss = new FrostBoss(410, this.summit.y - 52, this.summit);
+        enemies.push(this.summitBoss);
+        activeCheckpoint = { stage: 6, x: 255, y: this.startY };
+        startCheckpoint = new Checkpoint(245, this.startY);
+        cameraX = 120;
+        cameraY = this.height - V_HEIGHT;
+    },
+    drawBackground(ctx, time) {
+        const p = this.palette;
+        ctx.fillStyle = p.sky;
+        ctx.fillRect(0, 0, this.size, this.height);
+        if (!this.art) return;
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(this.art.background, 0, 0, this.size, this.height);
+        const t = this.reducedMotion ? 0 : time;
+        this.art.parts.forEach((part, i) => {
+            const wind = part.kind === 'wind';
+            const dx = Math.round(Math.sin(t * (wind ? 0.6 : 0.85) + i) * (wind ? 7 : 3));
+            const dy = Math.round(Math.sin(t * 0.7 + i * 1.8) * (wind ? 2 : 4));
+            ctx.drawImage(part.image, Math.round(part.x * 7.2) + dx, Math.round(part.y * 28.8) + dy,
+                Math.ceil(part.w * 7.2), Math.ceil(part.h * 28.8));
+        });
+        // Stepped translucent light, not blur: retain hard pixel edges in the artwork.
+        ctx.save();
+        ctx.fillStyle = p.sun;
+        ctx.globalAlpha = 0.035;
+        for (let i = 0; i < 6; i++) {
+            ctx.fillRect(330 - i * 30, 80 + i * 112, 150 + i * 45, 136);
+        }
+        ctx.restore();
+    },
+    drawPlatform(ctx, platform) {
+        const p = this.palette;
+        const x = Math.floor(platform.x), y = Math.floor(platform.y);
+        drawPixelRect(ctx, p.earthDark, x + 3, y + 4, platform.w, platform.h);
+        drawPixelRect(ctx, p.earth, x, y, platform.w, platform.h);
+        drawPixelRect(ctx, p.edge, x, y, platform.w, 3);
+        for (let i = 8; i < platform.w - 3; i += 17) {
+            drawPixelRect(ctx, p.earthDark, x + i, y + 6, 8, 2);
+        }
+        if (y < 650) drawPixelRect(ctx, p.snow, x + 2, y - 2, platform.w - 4, 3);
+    },
+    drawDetails(ctx, time) {
+        const p = this.palette;
+        const summit = platforms[platforms.length - 1];
+        drawPixelRect(ctx, p.earthDark, summit.x + 44, summit.y - 34, 3, 34);
+        drawPixelRect(ctx, p.eye, summit.x + 47, summit.y - 34, 18, 10);
+        drawPixelRect(ctx, p.snow, summit.x + 47, summit.y - 34, 18, 2);
+        platforms.forEach((platform, i) => {
+            if (i > 0 && i % 12 === 0) Sprites.drawCheckpointStatue(ctx, platform.x + 15, platform.y - 24, time * 10);
+        });
+        ctx.save();
+        ctx.fillStyle = p.sun;
+        for (let i = 0; i < 18; i++) {
+            const x = (i * 79 + time * 5) % this.size;
+            const y = (i * 277 + Math.sin(time * 0.6 + i) * 5) % this.height;
+            ctx.globalAlpha = 0.15 + (Math.sin(time + i) + 1) * 0.14;
+            ctx.fillRect(Math.floor(x), Math.floor(y), 2, 2);
+        }
+        ctx.restore();
+    },
+    update() {
+        player.x = Math.max(0, Math.min(this.size - player.width, player.x));
+        const index = platforms.indexOf(player.ridingPlatform);
+        if (player.grounded && index > this.checkpointIndex && index % 12 === 0) {
+            this.checkpointIndex = index;
+            activeCheckpoint = { stage: 6, x: platforms[index].x + 15, y: platforms[index].y - player.height };
+            audio.playHeal();
+        } else if (index <= this.checkpointIndex) {
+            // Touch a statue from any side (not just a perfect landing) to save it.
+            for (let i = Math.max(12, this.checkpointIndex + 12); i < platforms.length; i += 12) {
+                const sx = platforms[i].x + 15, sy = platforms[i].y - 24;
+                if (Math.abs(player.x + player.width / 2 - (sx + 8)) < 26 && Math.abs(player.y + player.height / 2 - (sy + 12)) < 30) {
+                    this.checkpointIndex = i;
+                    activeCheckpoint = { stage: 6, x: sx, y: platforms[i].y - player.height };
+                    audio.playHeal();
+                    break;
+                }
+            }
+        }
+        if (player.y > cameraY + V_HEIGHT + 80 || player.y > this.height + 20) {
+            tookDamageThisRun = true;
+            player.takeDamage(0);
+            if (gameState === 'PLAYING') {
+                player.reset(activeCheckpoint.x, activeCheckpoint.y);
+                cameraY = Math.max(0, Math.min(this.height - V_HEIGHT, player.y - 150));
+            }
+        }
+        stageLabel.textContent = `MOUNTAIN: ${Math.min(100, Math.max(0, Math.round((this.startY - player.y) / (this.startY - 164) * 100)))}%`;
+        if (!this.completed && this.summitBoss.dead) {
+            // Same sequence as the first boss: the knight celebrates, then Boofemo appears and celebrates, then the dialogue.
+            this.completed = true;
+            projectiles = [];
+            boofemoPos = { x: this.summit.x + 150, y: this.summit.y };
+            startPostBossCutscene();
+        }
+    },
+    replies: {
+        first: { replay: ["Let's do this again!"], continue: ["Let's go! We are SO ready for this next stage."] },
+        success: { replay: ["Haha! The more tokens the better!"], continue: ["Alright! You're even more ready for this next stage!"] },
+        failed: { replay: ["Nice! Don't give up just yet!"], continue: ["Alright, I understand.", "Maybe we'll do SPECTACULAR for this next stage!"] }
+    },
+    endingDialogue() {
+        if (isReplayRun) {
+            if (tookDamageThisRun || enemiesKilledThisRun < enemiesSpawnedThisRun) {
+                playDialogue(["Aw it's alright! You did your best!"], () => showChoices('failed'));
+            } else {
+                frostTokens += 5;
+                unifiedTokens = true;
+                updateMagmaHUD();
+                playDialogue(["You got 5 Frost Tokens! Congrats!", "Do you want more tokens or shall we continue?"], () => {
+                    showChoices('success');
+                    if (!tokenTipShown) {
+                        tokenTipShown = true;
+                        openTokenModal('tip');
+                    }
+                });
+            }
+            return;
+        }
+        const lines = ["We made it to the summit!"];
+        if (!this.introShown) lines.push(
+            "Now, similarly you can replay this level without taking any damage for other tokens.",
+            "I promise that SOON, you will be able to use these tokens for really cool things!",
+            "I won't remind you to replay levels for tokens anymore after this.",
+            "But, just keep in mind that this will happen for every level.",
+            "You will either get different types of tokens, or more of previous tokens.",
+            "With that said, choose your option!"
+        );
+        this.introShown = true;
+        playDialogue(lines, () => showChoices('first'));
+
+    }
+};
+
+class MountainEnemy {
+    constructor(x, y, type, platform = null) {
+        this.x = x; this.y = y; this.startX = x; this.startY = y;
+        this.type = type; this.platform = platform;
+        this.width = type === 'hawk' ? 24 : 20; this.height = 20;
+        this.hp = type === 'hawk' ? 40 : 80; this.maxHp = this.hp;
+        this.dead = false; this.lastHitAttackId = -1;
+        this.animFrame = 0; this.dir = 1; this.state = 'walk'; this.cooldown = 2;
+    }
+    update(dt, knight) {
+        this.animFrame += dt;
+        this.cooldown -= dt;
+        if (this.type === 'hawk') {
+            const nearby = Math.hypot(knight.x - this.x, knight.y - this.y) < 150;
+            if (this.state === 'walk' && nearby && this.cooldown <= 0) {
+                this.state = 'windup'; this.timer = 0.6;
+            }
+            if (this.state === 'windup') {
+                this.timer -= dt;
+                if (this.timer <= 0) {
+                    const angle = Math.atan2(knight.y - this.y, knight.x - this.x);
+                    this.vx = Math.cos(angle) * 145; this.vy = Math.sin(angle) * 145;
+                    this.state = 'dive'; this.timer = 0.65;
+                }
+            } else if (this.state === 'dive') {
+                this.x += this.vx * dt; this.y += this.vy * dt; this.timer -= dt;
+                if (this.timer <= 0) { this.state = 'walk'; this.cooldown = 2.8; }
+            } else {
+                this.x += (this.startX + Math.sin(this.animFrame) * 35 - this.x) * Math.min(1, dt * 3);
+                this.y += (this.startY + Math.sin(this.animFrame * 2) * 8 - this.y) * Math.min(1, dt * 3);
+            }
+        } else if (this.platform) {
+            const near = Math.abs(knight.y - this.y) < 32 && Math.abs(knight.x - this.x) < 90;
+            if (this.state === 'walk' && near && this.cooldown <= 0) {
+                this.state = 'windup'; this.timer = 0.65; this.dir = knight.x > this.x ? 1 : -1;
+            }
+            if (this.state === 'windup') {
+                this.timer -= dt;
+                if (this.timer <= 0) { this.state = 'charge'; this.timer = 0.45; }
+            } else {
+                this.x += this.dir * (this.state === 'charge' ? 110 : 22) * dt;
+                if (this.state === 'charge') {
+                    this.timer -= dt;
+                    if (this.timer <= 0) { this.state = 'walk'; this.cooldown = 2; }
+                }
+                if (this.x < this.platform.x + 3 || this.x > this.platform.x + this.platform.w - this.width - 3) this.dir *= -1;
+                this.x = Math.max(this.platform.x + 3, Math.min(this.platform.x + this.platform.w - this.width - 3, this.x));
+            }
+        }
+    }
+    draw(ctx) {
+        if (this.dead) return;
+        const p = MountainLevel.palette;
+        const x = Math.floor(this.x), y = Math.floor(this.y);
+        if (this.type === 'hawk') {
+            const flap = Math.round(Math.sin(this.animFrame * 9) * 4);
+            drawPixelRect(ctx, p.wing, x - 7, y + 4 + flap, 12, 4);
+            drawPixelRect(ctx, p.wing, x + 17, y + 4 - flap, 13, 4);
+            drawPixelRect(ctx, p.feather, x + 3, y + 5, 17, 9);
+            drawPixelRect(ctx, p.earthDark, x + 15, y + 5, 3, 3);
+            drawPixelRect(ctx, p.edge, x + 20, y + 8, 5, 3);
+        } else {
+            drawPixelRect(ctx, p.rockDark, x, y + 7, 20, 13);
+            drawPixelRect(ctx, p.rock, x + 3, y + 1, 14, 16);
+            drawPixelRect(ctx, p.snow, x + 3, y + 1, 14, 3);
+            drawPixelRect(ctx, p.eye, x + 5, y + 7, 3, 3);
+            drawPixelRect(ctx, p.eye, x + 12, y + 7, 3, 3);
+            drawPixelRect(ctx, p.rockDark, x + 5, y + 19, 4, 3);
+            drawPixelRect(ctx, p.rockDark, x + 13, y + 19, 4, 3);
+        }
+        if (this.state === 'windup') {
+            drawPixelRect(ctx, p.earthDark, x + 8, y - 11, 4, 6);
+            drawPixelRect(ctx, p.sun, x + 8, y - 4, 4, 2);
+        }
+        if (this.hp < this.maxHp) {
+            drawPixelRect(ctx, p.rockDark, x, y - 5, 20, 2);
+            drawPixelRect(ctx, p.eye, x, y - 5, 20 * this.hp / this.maxHp, 2);
+        }
+    }
+}
+
+// Frost projectiles share shield/collision mechanics, but keep cold pixel artwork and a finite lifetime.
+class FrostProjectile extends Projectile {
+    constructor(x, y, vx, vy) { super(x, y, vx, vy); this.life = 5; }
+    update(dt, knight, ledges) {
+        super.update(dt, knight, ledges);
+        this.life -= dt;
+        if (this.life <= 0 || this.x < -30 || this.x > MountainLevel.size + 30) this.active = false;
+    }
+    draw(ctx) {
+        const p = MountainLevel.palette;
+        drawPixelRect(ctx, p.wing, this.x, this.y, 8, 8);
+        drawPixelRect(ctx, p.eye, this.x + 2, this.y + 1, 4, 6);
+        drawPixelRect(ctx, p.snow, this.x + 3, this.y + 2, 2, 3);
+    }
+}
+
+class FrostBoss {
+    constructor(x, y, platform) {
+        this.x = x; this.y = y; this.platform = platform;
+        this.width = 44; this.height = 52;
+        this.hp = 750; this.maxHp = 750;   // Demon Lord has 500 HP, so this boss has 250 more
+        this.dead = false; this.lastHitAttackId = -1; this.invulnerableTimer = 0;
+        this.type = 'frostBoss'; this.state = 'idle'; this.timer = 1.2;
+        this.attackCycle = 0; this.animFrame = 0; this.engaged = false; this.dir = -1;
+    }
+    update(dt, knight, shots) {
+        this.animFrame += dt;
+        this.invulnerableTimer = Math.max(0, this.invulnerableTimer - dt);
+        if (!this.engaged && knight.y > this.platform.y + 100) return;
+        this.engaged = true;
+        bossBarContainer.classList.remove('hidden');
+        bossBarContainer.querySelector('.glow-red').textContent = '❄ FROSTBOUND TITAN';
+        bossHpText.textContent = `${Math.max(0, this.hp)} / ${this.maxHp} HP`;
+        bossHpBar.style.width = `${Math.max(0, this.hp) / this.maxHp * 100}%`;
+        const enraged = this.hp <= this.maxHp / 2;
+        this.timer -= dt;
+        if (this.state === 'idle') {
+            this.dir = knight.x > this.x ? 1 : -1;
+            this.x += this.dir * (enraged ? 75 : 50) * dt;
+            if (this.timer <= 0) {
+                this.state = 'windup'; this.timer = enraged ? 0.6 : 0.9;
+                this.attackCycle++;
+                this.targetX = knight.x;
+            }
+        } else if (this.state === 'windup' && this.timer <= 0) {
+            const mode = this.attackCycle % 3;
+            if (mode === 0) {
+                this.state = 'charge'; this.timer = 0.65;
+                this.dir = this.targetX > this.x ? 1 : -1;
+            } else {
+                const count = enraged ? 9 : 7;
+                for (let i = 0; i < count; i++) {
+                    if (mode === 1) {
+                        const angle = Math.atan2(knight.y + 10 - (this.y + 26), knight.x - (this.x + 22)) + (i - (count - 1) / 2) * 0.15;
+                        shots.push(new FrostProjectile(this.x + 22, this.y + 26, Math.cos(angle) * 215, Math.sin(angle) * 215));
+                    } else {
+                        shots.push(new FrostProjectile(this.platform.x + 20 + i * (280 / (count - 1)), this.platform.y - 155, 0, enraged ? 205 : 155));
+                    }
+                }
+                audio.playFireball();
+                this.state = 'recover'; this.timer = enraged ? 0.7 : 1.1;
+            }
+        } else if (this.state === 'charge') {
+            this.x += this.dir * (enraged ? 215 : 175) * dt;
+            if (this.timer <= 0) { this.state = 'recover'; this.timer = 0.85; }
+        } else if (this.state === 'recover' && this.timer <= 0) {
+            this.state = 'idle'; this.timer = enraged ? 0.55 : 0.95;
+        }
+        this.x = Math.max(this.platform.x + 4, Math.min(this.platform.x + this.platform.w - this.width - 4, this.x));
+    }
+    draw(ctx) {
+        if (this.dead) return;
+        const p = MountainLevel.palette, x = Math.floor(this.x), y = Math.floor(this.y);
+        drawPixelRect(ctx, p.rockDark, x + 3, y + 14, 38, 34);
+        drawPixelRect(ctx, p.feather, x + 7, y + 7, 30, 37);
+        drawPixelRect(ctx, p.snow, x + 10, y, 24, 24);
+        drawPixelRect(ctx, p.eye, x + 10, y - 7, 5, 12);
+        drawPixelRect(ctx, p.eye, x + 29, y - 7, 5, 12);
+        drawPixelRect(ctx, this.hp <= this.maxHp / 2 ? p.edge : p.eye, x + 14, y + 10, 5, 4);
+        drawPixelRect(ctx, this.hp <= this.maxHp / 2 ? p.edge : p.eye, x + 25, y + 10, 5, 4);
+        drawPixelRect(ctx, p.rockDark, x + 17, y + 20, 12, 5);
+        const arms = this.state === 'windup' ? -10 : Math.round(Math.sin(this.animFrame * 7) * 3);
+        drawPixelRect(ctx, p.wing, x - 7, y + 18 + arms, 12, 23);
+        drawPixelRect(ctx, p.wing, x + 38, y + 18 - arms, 12, 23);
+        drawPixelRect(ctx, p.eye, x - 7, y + 36 + arms, 12, 5);
+        drawPixelRect(ctx, p.eye, x + 38, y + 36 - arms, 12, 5);
+        drawPixelRect(ctx, p.rockDark, x + 7, y + 44, 12, 8);
+        drawPixelRect(ctx, p.rockDark, x + 26, y + 44, 12, 8);
+        if (this.state === 'windup') {
+            drawPixelRect(ctx, p.sun, x + 20, y - 23, 4, 9);
+            drawPixelRect(ctx, p.sun, x + 20, y - 12, 4, 3);
+            if (this.attackCycle % 3 === 2) {
+                for (let i = 0; i < 9; i++) drawPixelRect(ctx, p.eye, this.platform.x + 18 + i * 35, this.platform.y - 3, 8, 3);
+            }
+        }
+    }
+}
+
+MountainLevel.prepare().catch(error => console.error(error.message));
+</script>
+</body>
+</html>
